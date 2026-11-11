@@ -9,10 +9,13 @@ description = "Industrial equipment reliability intelligence and MLOps platform"
 readme = "README.md"
 requires-python = "==3.11.*"
 dependencies = [
+    "mlflow==2.22.0",
     "numpy==2.2.6",
     "pandas==2.2.3",
+    "pydantic==2.11.7",
     "pyarrow==19.0.1",
     "PyYAML==6.0.2",
+    "scikit-learn==1.6.1",
 ]
 
 [project.optional-dependencies]
@@ -51,3 +54,7 @@ python_version = "3.11"
 mypy_path = "src"
 files = ["src"]
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["sklearn.*"]
+ignore_missing_imports = true

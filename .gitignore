@@ -25,3 +25,4 @@ data/raw/
 data/processed/
 artifacts/
 reports/generated/
+mlruns/

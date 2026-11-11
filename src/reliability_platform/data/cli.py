@@ -81,6 +81,20 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("reports/generated/exploratory_analysis.executed.ipynb"),
     )
+    train = commands.add_parser(
+        "train-baselines",
+        help="train and evaluate reproducible RUL baseline models",
+    )
+    train.add_argument("--input", type=Path, required=True)
+    train.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports/generated/baseline_metrics.json"),
+    )
+    train.add_argument("--experiment-name", default="reliability-rul-baselines")
+    train.add_argument("--tracking-uri", default="file:./mlruns")
+    train.add_argument("--seed", type=int, default=42)
+    train.add_argument("--window-size", type=int, default=5)
     return parser
 
 
@@ -106,6 +120,28 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
     if arguments.command == "run-eda":
         eda_notebook_main(["--output", str(arguments.output)])
+        return
+    if arguments.command == "train-baselines":
+        from reliability_platform.modeling.cli import (
+            main as baseline_training_main,
+        )
+
+        baseline_training_main(
+            [
+                "--input",
+                str(arguments.input),
+                "--output",
+                str(arguments.output),
+                "--experiment-name",
+                arguments.experiment_name,
+                "--tracking-uri",
+                arguments.tracking_uri,
+                "--seed",
+                str(arguments.seed),
+                "--window-size",
+                str(arguments.window_size),
+            ]
+        )
         return
 
     try:
