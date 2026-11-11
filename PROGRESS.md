@@ -9,7 +9,7 @@
 - Done: Phases 0-5: project setup, data engineering, reliability analysis, leakage-aware features, baseline and advanced modeling, uncertainty, explainability, and heuristic maintenance backtesting.
 - In progress: None.
 - Next up: Wait for explicit approval before Phase 7.
-- Blockers: GitHub CI has not run for the local Phase 4-6 changes. The user can push these changes to run CI.
+- Blockers: GitHub Actions run 43114036981 failed at `ruff format --check` because `src/reliability_platform/api/app.py` would be reformatted. The local formatter has now fixed it and the full repository format check passes; push this fix to rerun CI.
 
 ## Phase Checklist
 
@@ -144,6 +144,7 @@ Acceptance criteria:
 - [x] Local API tests load an actual MLflow artifact and verify request/response contracts.
 - [x] Locally pass both `docker compose config` and `docker buildx build --load`.
 - [x] The container responds correctly to documented sample requests.
+- [ ] GitHub CI passes after the formatting fix is pushed.
 
 Phase 7 is not started; see `PROJECT_SPEC.md`.
 
@@ -188,6 +189,7 @@ Phase 7 is not started; see `PROJECT_SPEC.md`.
 | 2026-11-12 | Phase 5 automated checks | Full Pytest: 49 passed. Final Ruff lint, format check (44 files), strict Mypy (27 source files), `pip check`, and `git diff --check` all passed. GitHub CI has not run for local Phase 4/5 changes. | N/A |
 | 2026-11-12 | Phase 6 serving model preparation | Seed-42 synthetic fleet; random forest fitted on training machines and calibrated on validation machines at 90% target. Manifest references MLflow run `05ba7e06f54c4a8fba45860a4bf2053d`. | `05ba7e06f54c4a8fba45860a4bf2053d` |
 | 2026-11-12 | Phase 6 API integration tests | Full Pytest: 51 passed (2 API integration tests). Tests loaded an MLflow artifact and verified `/health`, `/predict`, `/explain` (SHAP additivity), `/schedule` capacity/priority ordering, duplicate-cycle rejection, and unavailable-model HTTP 503. After fixing local Windows MLflow file-URI handling for a Linux container, the 2 API integration tests passed again. Final Ruff lint/format, strict Mypy, `pip check`, `git diff --check`, and sample JSON validation passed. Docker/Compose verified locally: `docker compose config` and `docker buildx build --load --tag reliability-platform-api:phase6 .` succeeded; `docker compose up --build --wait` reached healthy. The documented sample returned RUL 120.276 cycles, interval [53.922, 186.631], risk 0, and SHAP additivity residual 6.96e-13. | N/A |
+| 2026-11-12 | Phase 6 GitHub Actions | Run 43114036981 failed at `ruff format --check`: CI reported `src/reliability_platform/api/app.py` would be reformatted. Applied `ruff format` locally; full repository format check now passes (50 files). CI remains pending until this fix is pushed. | N/A |
 
 ## Session Log
 

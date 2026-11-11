@@ -125,11 +125,7 @@ class ServingRuntime:
             tracking_path = Path.cwd() / tracking_path
         run = MlflowClient(tracking_uri=self.settings.tracking_uri).get_run(run_id)
         model_path = (
-            tracking_path
-            / run.info.experiment_id
-            / run_id
-            / "artifacts"
-            / "model"
+            tracking_path / run.info.experiment_id / run_id / "artifacts" / "model"
         )
         return model_path if model_path.is_dir() else None
 
