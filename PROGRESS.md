@@ -68,7 +68,7 @@ Acceptance criteria:
 - [x] Reliability metrics are calculated in reusable Python modules.
 - [x] Findings are reproducible through the notebook and CLI.
 - [x] Findings are measured from available NASA and synthetic datasets; unsupported MTBF and downtime are explicitly unavailable.
-- [ ] GitHub Actions passes for the Phase 2 commit.
+- [x] GitHub Actions passes for the Phase 2 commit.
 
 Phases 3-9 are not started; see `PROJECT_SPEC.md`.
 
@@ -95,7 +95,7 @@ Phases 3-9 are not started; see `PROJECT_SPEC.md`.
 | 2026-11-11 | Phase 1 automated checks | Pytest: 16 passed; Ruff lint/format, Mypy, `pip check`, pre-commit config validation, and all four pre-commit hooks passed. [GitHub Actions run 43014898267](https://github.com/sravasti12/Equipment-Reliability-Intelligence-MLOps-Platform/actions/runs/43014898267) passed all steps. | N/A |
 | 2026-11-11 | Phase 2 EDA | Executed the notebook against NASA FD001/FD002 and seed-42 synthetic data. It produced seven visualized findings: FD001 median observed lifetime 199 cycles (IQR 177-229.2); five displayed RUL slopes average -1.000; sensor 3 largest plotted decile shift +13.060; strongest absolute sensor correlation sensor 9/14 (r=0.963); setting-1 SD FD002 14.7474 vs FD001 0.0022; synthetic type B maintenance rate 8.802/1,000 cycles; missing fraction NASA 0.000% vs synthetic 2.018%. | N/A |
 | 2026-11-11 | Phase 2 reliability reports | NASA FD001 report: 20,631 rows and 100 machines. Seed-42 synthetic report: 11,935 rows and 100 machines. MTBF is unavailable for both because no machine has recurrent observed failures; downtime is unavailable because neither dataset has measured downtime hours. | N/A |
-| 2026-11-11 | Phase 2 automated checks | Pytest: 27 passed; Ruff lint/format, Mypy, `pip check`, and all four pre-commit hooks passed. The notebook emitted a non-fatal Windows Proactor/ZMQ selector warning. GitHub Actions for the Phase 2 commit is pending. | N/A |
+| 2026-11-11 | Phase 2 automated checks | Pytest: 27 passed; Ruff lint/format, Mypy, `pip check`, and all four pre-commit hooks passed. The notebook emitted a non-fatal Windows Proactor/ZMQ selector warning. [GitHub Actions run 43023176262](https://github.com/sravasti12/Equipment-Reliability-Intelligence-MLOps-Platform/actions/runs/43023176262) passed all steps. | N/A |
 
 ## Session Log
 
@@ -109,9 +109,9 @@ Phases 3-9 are not started; see `PROJECT_SPEC.md`.
 
 - What was done: Added reusable reliability metrics and JSON reporting, an executable EDA notebook with seven measured visual findings, tests, development dependencies, and documentation.
 - Tests executed: 27 pytest tests; Ruff lint/format, Mypy, `pip check`, and all four pre-commit hooks. Executed the notebook with local NASA FD001/FD002 and synthetic data and generated reliability reports for NASA FD001 and the synthetic fleet.
-- Results: All local checks passed. Both reports used observed exposure and correctly reported MTBF and measured downtime as unavailable. Seven notebook findings are documented in the README and Results Log. GitHub Actions is pending the Phase 2 push.
+- Results: All local checks passed. Both reports used observed exposure and correctly reported MTBF and measured downtime as unavailable. Seven notebook findings are documented in the README and Results Log. GitHub Actions run 43023176262 passed all steps.
 - Problems encountered: On Windows, Jupyter's ZMQ integration emits a non-fatal Proactor event-loop warning and registers a selector thread; notebook execution and tests still pass. The pre-commit system-Python hooks require the project `.venv\Scripts` directory on `PATH`.
-- What is left for next session: Verify the Phase 2 GitHub Actions run, update this tracker with its result, then request approval before Phase 3.
+- What is left for next session: Phase 2 is complete; request approval before Phase 3.
 
 ## Known Issues / Limitations
 
