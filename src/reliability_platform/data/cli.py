@@ -16,6 +16,8 @@ from reliability_platform.data.simulator import (
 )
 from reliability_platform.data.storage import write_parquet
 from reliability_platform.data.validation import ValidationReport, validate_fleet
+from reliability_platform.evaluation.cli import main as reliability_report_main
+from reliability_platform.evaluation.notebook import main as eda_notebook_main
 
 
 def _read_config(path: Path) -> dict[str, Any]:
@@ -60,6 +62,25 @@ def _parser() -> argparse.ArgumentParser:
         type=float,
         default=1.0,
     )
+    reliability = commands.add_parser(
+        "analyze-reliability",
+        help="calculate reliability metrics from processed Parquet data",
+    )
+    reliability.add_argument("--input", type=Path, required=True)
+    reliability.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports/generated/reliability_summary.json"),
+    )
+    eda = commands.add_parser(
+        "run-eda",
+        help="execute the exploratory analysis notebook and write its outputs",
+    )
+    eda.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports/generated/exploratory_analysis.executed.ipynb"),
+    )
     return parser
 
 
@@ -77,6 +98,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     """Run a data-generation or C-MAPSS processing command."""
     parser = _parser()
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "analyze-reliability":
+        reliability_report_main(
+            ["--input", str(arguments.input), "--output", str(arguments.output)]
+        )
+        return
+    if arguments.command == "run-eda":
+        eda_notebook_main(["--output", str(arguments.output)])
+        return
 
     try:
         if arguments.command == "generate-synthetic":
