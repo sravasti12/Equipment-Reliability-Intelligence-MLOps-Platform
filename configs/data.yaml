@@ -1,0 +1,16 @@
+synthetic:
+  num_machines: 100
+  minimum_lifetime_cycles: 80
+  maximum_lifetime_cycles: 160
+  sensor_count: 5
+  sensor_noise_std: 1.0
+  missing_probability: 0.02
+  maintenance_probability: 0.65
+  maximum_maintenance_events: 2
+  random_seed: 42
+
+validation:
+  max_sensor_missing_fraction: 0.10
+
+paths:
+  synthetic_output: data/processed/synthetic_fleet.parquet

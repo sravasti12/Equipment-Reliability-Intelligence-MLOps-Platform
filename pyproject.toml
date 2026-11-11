@@ -8,22 +8,32 @@ version = "0.1.0"
 description = "Industrial equipment reliability intelligence and MLOps platform"
 readme = "README.md"
 requires-python = "==3.11.*"
-dependencies = []
+dependencies = [
+    "numpy==2.2.6",
+    "pandas==2.2.3",
+    "pyarrow==19.0.1",
+    "PyYAML==6.0.2",
+]
 
 [project.optional-dependencies]
 dev = [
     "mypy==1.15.0",
+    "pandas-stubs==2.2.3.250308",
     "pre-commit==4.2.0",
     "pytest==8.3.5",
     "ruff==0.11.13",
+    "types-PyYAML==6.0.12.20250516",
 ]
+
+[project.scripts]
+reliability-platform = "reliability_platform.data.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --basetemp=.pytest_tmp"
 
 [tool.ruff]
 line-length = 88

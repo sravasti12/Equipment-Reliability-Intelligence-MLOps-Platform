@@ -9,6 +9,7 @@ dist/
 
 # Test, type-check, and lint caches
 .pytest_cache/
+.pytest_tmp/
 .mypy_cache/
 .ruff_cache/
 .coverage
