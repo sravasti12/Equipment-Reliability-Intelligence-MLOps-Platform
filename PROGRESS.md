@@ -1,15 +1,15 @@
 # Progress Tracker
 
-**Last updated:** 2026-11-11
-**Current phase:** Phase 3: Feature Engineering and Baseline Models complete; awaiting approval for Phase 4
-**Overall status:** 4 of 10 phases complete
+**Last updated:** 2026-11-12
+**Current phase:** Phase 4: Advanced Machine Learning and Uncertainty Quantification complete locally
+**Overall status:** 5 of 10 phases complete
 
 ## Status Summary
 
-- Done: Phases 0-3: project setup, data engineering, reliability analysis, leakage-aware features, and baseline modeling.
+- Done: Phases 0-4: project setup, data engineering, reliability analysis, leakage-aware features, baseline and advanced modeling, uncertainty, and explainability.
 - In progress: None.
-- Next up: Request approval to begin Phase 4: Advanced Machine Learning and Uncertainty Quantification.
-- Blockers: None. GitHub CI for Phase 3 awaits the user's push.
+- Next up: Wait for explicit approval before Phase 5: Heuristic Maintenance Scheduling and Business Backtesting.
+- Blockers: Phase 4 GitHub CI has not run; changes are local and uncommitted pending the user's push.
 
 ## Phase Checklist
 
@@ -88,7 +88,28 @@ Acceptance criteria:
 - [x] Metrics are logged to local MLflow experiments.
 - [x] Baseline performance and split scope are documented.
 
-Phases 4-9 are not started; see `PROJECT_SPEC.md`.
+#### Phase 4: Advanced Machine Learning and Uncertainty Quantification
+
+- [x] Add one causal unidirectional PyTorch LSTM and compare it with Phase 3 RUL baselines.
+- [x] Select RUL models using validation RMSE; keep the machine-disjoint test partition for final evaluation.
+- [x] Add train-fitted Isolation Forest preprocessing and deterministic injected-sensor-shift evaluation.
+- [x] Add landmark Weibull AFT survival analysis with explicit event/censoring rules and a Kaplan-Meier baseline.
+- [x] Add machine-trajectory split-conformal RUL intervals and report row, trajectory, and group coverage plus width.
+- [x] Add global and individual SHAP explanations with an explicit additivity check.
+- [x] Track model, calibration, survival, anomaly, and explanation experiments in MLflow.
+- [x] Document measured synthetic-fleet results and FD002 tracked evaluation results with limitations.
+- [x] Add unit and end-to-end integration tests for uncertainty, survival, model training, reports, and MLflow.
+
+Acceptance criteria:
+
+- [x] Advanced models are compared with meaningful baselines.
+- [x] Machine-disjoint test data is evaluated only after validation-based selection.
+- [x] Conformal target/observed coverage and interval width are reported.
+- [x] All advanced workflow runs are tracked in MLflow; the synthetic CLI completed end to end.
+- [x] Local automated checks pass.
+- [ ] GitHub CI passes after the user pushes these changes.
+
+Phases 5-9 are not started; see `PROJECT_SPEC.md`.
 
 ## Decisions
 
@@ -103,6 +124,9 @@ Phases 4-9 are not started; see `PROJECT_SPEC.md`.
 | 2026-11-11 | Pin Matplotlib and notebook execution dependencies in the development extra. | Keep EDA visualizations and headless notebook execution reproducible without adding runtime dependencies. |
 | 2026-11-11 | Pin scikit-learn 1.6.1 and MLflow 2.22.0 for the baseline models and experiment tracking; pin Pydantic 2.11.7 for a reproducible compatible MLflow dependency set. | Keep model training, metric logging, artifact serialization, and dependency resolution consistent. |
 | 2026-11-11 | Fit sensor imputation/scaling and numeric operating-condition bin edges on training machines only. | Prevent held-out observations from influencing preprocessing or group definitions. |
+| 2026-11-12 | Use one unidirectional LSTM, selected against Phase 3 baselines on validation RMSE. | Meet the temporal-model requirement without adding multiple deep architectures or tuning against test data. |
+| 2026-11-12 | Calibrate conformal intervals on each calibration machine's maximum absolute cycle residual. | Treat a machine trajectory, rather than correlated cycle rows, as the calibration unit. |
+| 2026-11-12 | Use TreeExplainer tree-path-dependent perturbation after interventional SHAP failed its additivity check on FD002. | The corrected explanation method passes an explicit contribution-sum check on synthetic and saved FD002 models. |
 
 ## Results Log
 
@@ -119,6 +143,9 @@ Phases 4-9 are not started; see `PROJECT_SPEC.md`.
 | 2026-11-11 | Phase 3 NASA FD002 baseline | Held out 39 of 260 machines from the FD002 training file (8,070 test rows; 182/39/39 machines in train/validation/test). Test RMSE/MAE/asymmetric score: constant mean 67.594/56.315/918,376,631; linear 41.230/31.664/6,473,930; random forest 36.086/26.280/3,358,202. Random-forest RMSE ranged 35.105-36.495 over the training-defined setting_1/setting_2 test bins. | `phase3-cmapss-fd002` |
 | 2026-11-11 | Phase 3 synthetic baseline | Seed-42 fleet held out 15 of 100 machines (1,772 test rows; 70/15/15 machines in train/validation/test). Test RMSE/MAE/asymmetric score: constant mean 36.909/31.257/118,118; linear 20.026/16.721/15,411; random forest 18.903/14.444/14,827. Random-forest RMSE by machine type: type A 23.992, type B 13.806, type C 14.865. | `phase3-synthetic-fleet-final` |
 | 2026-11-11 | Phase 3 automated checks | Pytest: 37 passed; Ruff lint/format, Mypy, `pip check`, and all four pre-commit hooks passed. Local MLflow integration test verifies 3 completed runs, logged metrics/model artifacts, and non-negative model predictions. Remaining warnings are from MLflow's Pydantic models and the known Windows notebook/ZMQ event loop integration. GitHub CI awaits the user's push. | N/A |
+| 2026-11-12 | Phase 4 seeded synthetic fleet | Full CLI completed on the seed-42 fleet (15 test machines, 1,772 rows). Validation selected random forest; test RMSE/MAE/asymmetric score: constant 36.982/31.330/123,660; linear 19.173/15.595/16,042; random forest 16.726/13.153/9,263; LSTM 22.139/17.541/26,324. At 90% target, row and trajectory coverage were both 100%, with 98.684-cycle average width from 14 calibration machines. Validation selected Kaplan-Meier (test Brier 0.214 vs. Weibull AFT 0.271). Injected-shift test ROC AUC 0.600 / average precision 0.609. SHAP maximum additivity residual: 9.6e-13. | `synthetic-phase4` |
+| 2026-11-12 | Phase 4 NASA FD002 evaluation | Logged test metrics for a 39-machine / 8,070-row holdout from the FD002 training file; validation selected random forest (RMSE 35.057). Test RMSE/MAE/asymmetric score: constant 67.597/56.244/1,040,422,794; linear 40.124/31.161/4,819,382; random forest 35.494/25.923/2,770,600; LSTM 44.246/32.093/75,086,389. Target conformal coverage 90%, observed row/trajectory coverage 100%, average width 278.061 cycles (36 calibration machines). Validation selected Kaplan-Meier; test Brier was 0.207 for Kaplan-Meier and 0.197 for Weibull AFT. Injected-shift ROC AUC 0.570 / average precision 0.556. The initial CLI stopped before writing JSON at SHAP; after the fix, direct explanation of the saved FD002 model succeeded for 32 rows with max additivity residual 8.32e-10. | `cmapss-fd002-phase4` |
+| 2026-11-12 | Phase 4 automated checks | Full Pytest: 43 passed in 215.57 s; Ruff lint and format, Mypy (24 source files), `pip check`, and `git diff --check` passed. The focused advanced integration test completed the synthetic CLI and verified MLflow runs, plots, and SHAP additivity. The full FD002 CLI was not rerun after the SHAP fix; Phase 4 CI awaits push. | N/A |
 
 ## Session Log
 
@@ -142,8 +169,16 @@ Phases 4-9 are not started; see `PROJECT_SPEC.md`.
 - Problems encountered: The FD002 baseline run is compute-intensive. MLflow 2.22 emits upstream Pydantic deprecation warnings, and the notebook integration retains the previously documented non-fatal Windows ZMQ/Proactor warning.
 - What is left for next session: Phase 3 is complete locally; the user will push the changes and can verify GitHub CI. Request approval before Phase 4.
 
+- What was done: Added the Phase 4 LSTM, Isolation Forest injected-shift evaluation, landmark Weibull AFT and Kaplan-Meier comparison, machine-level conformal intervals, SHAP explanations, comparison report, CLI, MLflow tracking, tests, and documentation.
+- Tests executed: Full Pytest suite (43 passed); Ruff lint/format, Mypy, `pip check`, and `git diff --check`. Ran the complete advanced CLI on the seed-42 synthetic fleet. Ran FD002 evaluation and inspected tracked test metrics; validated corrected SHAP directly against its saved random forest model.
+- Results: Synthetic CLI completed end to end; random forest was selected on validation (test RMSE 16.726) while the LSTM scored 22.139. Synthetic conformal coverage was 100% for rows and trajectories against a 90% target, at 98.684-cycle average width. Local type, lint, format, dependency, and all test checks pass.
+- Problems encountered: The initial full FD002 CLI invocation stopped before writing its JSON because interventional SHAP failed the additivity check (maximum discrepancy 0.750 cycles). Tree-path-dependent SHAP was verified against the same saved FD002 model (32 explanations, maximum residual 8.32e-10), and the complete synthetic CLI plus integration test passed after the fix. The full FD002 CLI was not rerun. MLflow also warns that synthetic string-category input examples do not infer a model signature; model artifacts and metrics were logged. Tests emit upstream Pydantic, Matplotlib, and Pyparsing deprecation warnings.
+- What is left for next session: Phase 4 is complete locally; the user will push these changes so GitHub CI can run. Wait for explicit approval before Phase 5.
+
 ## Known Issues / Limitations
 
 - The enclosing `C:\Users\KIIT\.git` is unrelated; a separate project-local `.git` establishes the correct repository boundary.
 - The system default Python is 3.14.4; use Python 3.11 explicitly for this project.
 - NASA raw data and processed Parquet files are intentionally excluded from Git; use the documented download and processing commands to reproduce them.
+- The full FD002 Phase 4 CLI has not yet been rerun after correcting SHAP; its initial model metrics are present in MLflow, and corrected SHAP was verified directly on the saved model. The full advanced CLI passed on the seeded synthetic fleet.
+- MLflow 2.22 logs a warning rather than inferring a model signature for synthetic examples with string `operating_condition` values; the model artifacts and metric runs are still created.

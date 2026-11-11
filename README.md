@@ -6,9 +6,12 @@ The project follows the boundaries and phased plan in [PROJECT_SPEC.md](PROJECT_
 
 ## Status
 
-Phases 0-2 are complete: project setup, the NASA C-MAPSS and synthetic data
-pipelines, and exploratory reliability analysis. Phase 3 adds leakage-aware
-features and baseline RUL models. No API or dashboard has been implemented.
+Phases 0-4 are implemented and locally verified: project setup, data
+engineering, reliability analysis, leakage-aware feature engineering,
+baseline and advanced RUL models, survival analysis, anomaly detection,
+uncertainty quantification, and explainability. Phase 4's GitHub CI has not
+run because these local changes have not been pushed. No API or dashboard has
+been implemented.
 
 ## Development setup
 
@@ -183,6 +186,103 @@ test data, the random-forest RMSE ranged from 13.806 cycles for type B to
 from 35.105 to 36.495 across training-quantile bins for settings 1 and 2.
 The synthetic group results are simulation checks; NASA setting groups are
 descriptive condition comparisons.
+
+## Phase 4: Advanced models and uncertainty
+
+Run the single-architecture advanced comparison on a processed training file:
+
+```powershell
+reliability-platform train-advanced --input data\processed\cmapss_FD002_train.parquet --output reports\generated\fd002_advanced.json --experiment-name cmapss-fd002-advanced --tracking-uri file:./mlruns --seed 42 --window-size 5 --sequence-length 20 --epochs 10 --target-coverage 0.9 --landmark-cycles 20
+```
+
+The workflow uses an unidirectional LSTM over causal cycle-level features,
+Isolation Forest anomaly scores, a landmark Weibull AFT survival model,
+machine-level split-conformal RUL intervals, and SHAP explanations for the
+random forest. It reserves machines for fit, independent conformal calibration,
+validation-based selection, and a final test set. Only validation RMSE selects
+the RUL model; test metrics are calculated after selection and are not used to
+tune it. Model hyperparameters are fixed by the command options and documented
+defaults rather than tuned on the test data.
+
+The conformal score is the largest absolute cycle residual for each calibration
+machine, so the exchangeability unit is a machine trajectory, not its correlated
+cycle rows. The report includes target and observed row/trajectory coverage,
+average interval width, machine-type coverage, and coverage by operating
+condition or training-defined setting bins. Very wide intervals are reported
+as low utility rather than hidden by the coverage target.
+
+The survival model uses only the first `--landmark-cycles` observations as
+covariates, with last observed cycle as duration and explicit `failure_event`
+as the event indicator; missing event labels are treated as right censoring.
+It reports per-machine and horizon-level failure-free probabilities, Brier
+scores, and concordance. Survival probabilities describe event-free probability
+by time and are not RUL point predictions. C-MAPSS train and the seeded
+synthetic fleet are predominantly run-to-failure, limiting empirical
+assessment of censoring assumptions.
+
+Isolation Forest is evaluated with a fixed, reproducible validation and test
+scenario that shifts one held-out sensor value by six training standard
+deviations per machine. This is a controlled anomaly-detection check, not a
+measured fault label; anomaly scores are not failure probabilities. SHAP uses
+TreeExplainer's tree-path-dependent perturbation; the report records the
+maximum additivity residual and the run fails if explanations do not sum to
+the underlying random-forest predictions. Global and individual plots are
+written beside the JSON report as `*_shap_global.png` and
+`*_shap_individual.png`. SHAP values explain model attribution, not causality
+or a physical failure mechanism.
+
+All model, survival, anomaly, conformal, and explanation runs are logged to the
+selected MLflow experiment. The comparison report includes the Phase 3 baselines,
+the LSTM, random-forest raw-feature ablation, Weibull AFT and Kaplan-Meier
+survival baseline, and Isolation Forest scenario metrics. Advanced models are
+not expected to outperform the simpler baselines.
+
+### Phase 4 measured results
+
+The seeded synthetic run completed the full CLI workflow with 15 held-out
+machines (1,772 cycle rows). The NASA FD002 figures below are from completed
+MLflow evaluation runs on a 39-machine, 8,070-row holdout from the FD002
+training file; they are not results on NASA's separate official test split.
+
+| Dataset | Model | Test RMSE (cycles) | Test MAE (cycles) | NASA asymmetric score |
+|---|---|---:|---:|---:|
+| NASA FD002 | Constant mean | 67.597 | 56.244 | 1,040,422,794 |
+| NASA FD002 | Linear regression | 40.124 | 31.161 | 4,819,382 |
+| NASA FD002 | Random forest | 35.494 | 25.923 | 2,770,600 |
+| NASA FD002 | LSTM | 44.246 | 32.093 | 75,086,389 |
+| NASA FD002 | Random forest raw-feature ablation | 36.772 | 26.613 | 5,066,116 |
+| Synthetic (seed 42) | Constant mean | 36.982 | 31.330 | 123,660 |
+| Synthetic (seed 42) | Linear regression | 19.173 | 15.595 | 16,042 |
+| Synthetic (seed 42) | Random forest | 16.726 | 13.153 | 9,263 |
+| Synthetic (seed 42) | LSTM | 22.139 | 17.541 | 26,324 |
+
+Validation RMSE selected the random forest on both datasets; the LSTM did not
+outperform the simpler model. For the synthetic run, the 90% target conformal
+intervals covered 100% of test rows and complete trajectories, but averaged
+98.684 RUL cycles wide (14 calibration machines), so the observed coverage
+does not imply narrow or operationally useful intervals. The selected
+featureless Kaplan-Meier survival baseline had a test integrated Brier score
+of 0.214 versus 0.271 for Weibull AFT. The injected-shift anomaly check had
+ROC AUC 0.600 and average precision 0.609; these are synthetic scenario
+metrics, not real fault-detection performance. SHAP's maximum additivity
+residual was below 1e-12.
+
+For FD002, validation selected the featureless Kaplan-Meier baseline
+(validation Brier 0.207 versus 0.213 for Weibull AFT), while the test Brier
+scores were 0.207 for Kaplan-Meier and 0.197 for Weibull AFT. The 90% target
+conformal intervals covered all test rows and trajectories and averaged
+278.061 cycles wide (36 calibration machines). The injected-shift anomaly
+scenario had ROC AUC 0.570 and average precision 0.556. The lower Weibull test
+score does not change validation-based model selection.
+
+The FD002 CLI invocation reached and logged all model and test metrics but
+stopped before writing the comparison JSON: interventional SHAP
+explanations failed their additivity check by up to 0.750 RUL cycles. SHAP was
+changed to tree-path-dependent perturbation and then verified on the same
+saved FD002 random forest and holdout: 32 rows were explained, both plots were
+created, and the maximum additivity residual was 8.32e-10. The full FD002 CLI
+was not rerun after this correction; the corrected complete CLI is covered by
+the synthetic integration test.
 
 ## Project principles
 

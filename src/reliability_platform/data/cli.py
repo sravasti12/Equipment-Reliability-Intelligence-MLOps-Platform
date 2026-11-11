@@ -95,6 +95,24 @@ def _parser() -> argparse.ArgumentParser:
     train.add_argument("--tracking-uri", default="file:./mlruns")
     train.add_argument("--seed", type=int, default=42)
     train.add_argument("--window-size", type=int, default=5)
+    advanced = commands.add_parser(
+        "train-advanced",
+        help="train, compare, and explain Phase 4 advanced models",
+    )
+    advanced.add_argument("--input", type=Path, required=True)
+    advanced.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports/generated/advanced_model_comparison.json"),
+    )
+    advanced.add_argument("--experiment-name", default="reliability-phase4-advanced")
+    advanced.add_argument("--tracking-uri", default="file:./mlruns")
+    advanced.add_argument("--seed", type=int, default=42)
+    advanced.add_argument("--window-size", type=int, default=5)
+    advanced.add_argument("--sequence-length", type=int, default=20)
+    advanced.add_argument("--epochs", type=int, default=10)
+    advanced.add_argument("--target-coverage", type=float, default=0.9)
+    advanced.add_argument("--landmark-cycles", type=int, default=20)
     return parser
 
 
@@ -140,6 +158,36 @@ def main(argv: Sequence[str] | None = None) -> None:
                 str(arguments.seed),
                 "--window-size",
                 str(arguments.window_size),
+            ]
+        )
+        return
+    if arguments.command == "train-advanced":
+        from reliability_platform.modeling.advanced_cli import (
+            main as advanced_training_main,
+        )
+
+        advanced_training_main(
+            [
+                "--input",
+                str(arguments.input),
+                "--output",
+                str(arguments.output),
+                "--experiment-name",
+                arguments.experiment_name,
+                "--tracking-uri",
+                arguments.tracking_uri,
+                "--seed",
+                str(arguments.seed),
+                "--window-size",
+                str(arguments.window_size),
+                "--sequence-length",
+                str(arguments.sequence_length),
+                "--epochs",
+                str(arguments.epochs),
+                "--target-coverage",
+                str(arguments.target_coverage),
+                "--landmark-cycles",
+                str(arguments.landmark_cycles),
             ]
         )
         return
