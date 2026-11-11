@@ -133,6 +133,21 @@ def _parser() -> argparse.ArgumentParser:
         default="reliability-maintenance-backtest",
     )
     maintenance.add_argument("--tracking-uri", default="file:./mlruns")
+    serving = commands.add_parser(
+        "prepare-serving-model",
+        help="train and calibrate a versioned MLflow model for the API",
+    )
+    serving.add_argument("--input", type=Path, required=True)
+    serving.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports") / "generated" / "serving_model.json",
+    )
+    serving.add_argument("--experiment-name", default="reliability-platform-serving")
+    serving.add_argument("--tracking-uri", default="file:./mlruns")
+    serving.add_argument("--seed", type=int, default=42)
+    serving.add_argument("--window-size", type=int, default=5)
+    serving.add_argument("--target-coverage", type=float, default=0.9)
     return parser
 
 
@@ -228,6 +243,30 @@ def main(argv: Sequence[str] | None = None) -> None:
                 arguments.experiment_name,
                 "--tracking-uri",
                 arguments.tracking_uri,
+            ]
+        )
+        return
+    if arguments.command == "prepare-serving-model":
+        from reliability_platform.modeling.serving_cli import (
+            main as prepare_serving_model_main,
+        )
+
+        prepare_serving_model_main(
+            [
+                "--input",
+                str(arguments.input),
+                "--output",
+                str(arguments.output),
+                "--experiment-name",
+                arguments.experiment_name,
+                "--tracking-uri",
+                arguments.tracking_uri,
+                "--seed",
+                str(arguments.seed),
+                "--window-size",
+                str(arguments.window_size),
+                "--target-coverage",
+                str(arguments.target_coverage),
             ]
         )
         return

@@ -10,8 +10,9 @@ Phases 0-5 are implemented and locally verified: project setup, data
 engineering, reliability analysis, leakage-aware feature engineering,
 baseline and advanced RUL models, survival analysis, anomaly detection,
 uncertainty quantification, explainability, and heuristic maintenance
-backtesting. GitHub CI has not run for the local Phase 4/5 changes. No API or
-dashboard has been implemented.
+backtesting. Phase 6 API endpoints and Docker container are locally verified.
+GitHub CI has not run for the local Phase 4-6 changes. No dashboard has been
+implemented.
 
 ## Development setup
 
@@ -348,6 +349,52 @@ apparent fixed-interval benefit and these ML-policy results are not measured
 causal maintenance effects or evidence of real-world savings: they depend on
 the configured synthetic costs and the assumption that an intervention
 prevents a recorded failure only when scheduled within 40 cycles of it.
+
+## Phase 6: Model serving API
+
+First generate the reproducible synthetic fleet and prepare a serving model.
+The preparation command fits a random-forest pipeline on training machines,
+calibrates a machine-trajectory conformal interval on validation machines,
+logs the artifact and metrics to MLflow, and writes the run ID and feature
+schema to a manifest. Test machines are not used for fitting or calibration.
+
+```powershell
+reliability-platform generate-synthetic --output data\processed\synthetic_fleet.parquet
+reliability-platform prepare-serving-model --input data\processed\synthetic_fleet.parquet --output reports\generated\serving_model.json --experiment-name phase6-serving --tracking-uri file:./mlruns --seed 42 --window-size 5 --target-coverage 0.9
+docker compose up --build --wait
+```
+
+The Compose service mounts the local MLflow run store and serving manifest
+read-only. Its health check waits for the configured model run to load. From
+PowerShell, use the bundled [example request](examples/phase6_predict.json):
+
+```powershell
+curl.exe -fsS http://localhost:8000/health
+curl.exe -fsS -X POST http://localhost:8000/predict -H "Content-Type: application/json" --data-binary "@examples\phase6_predict.json"
+curl.exe -fsS -X POST http://localhost:8000/explain -H "Content-Type: application/json" --data-binary "@examples\phase6_predict.json"
+$machine = Get-Content examples\phase6_predict.json -Raw | ConvertFrom-Json
+$schedule = @{ machines = @($machine) } | ConvertTo-Json -Depth 20
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/schedule -ContentType "application/json" -Body $schedule
+docker compose down
+```
+
+`/predict` returns the machine ID, predicted RUL, calibrated interval, risk
+score, and MLflow run ID as the model version. `/explain` returns top
+tree-path-dependent SHAP contributions and checks their additivity.
+`/schedule` applies the Phase 5 deterministic risk ranking and capacity limit.
+`/health` reports service and model availability; model-dependent requests
+return HTTP 503 when the manifest or artifact is unavailable, while malformed
+or incomplete telemetry returns HTTP 422. Requests must provide unique cycle
+numbers, sensor names, and any settings/operating-condition features required
+by the manifest's training schema. The operating-condition value must match
+the value encoding used during training.
+
+The API serves one explicitly configured MLflow run; its run ID is not a
+registry stage and there is no model switching or promotion behavior.
+Intervals depend on the calibration population and its exchangeability
+assumption. SHAP is limited to the supported tree pipeline and explains model
+output, not causal effects. The maintenance schedule is a heuristic, not a
+global optimizer.
 
 ## Project principles
 

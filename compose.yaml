@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: file:/app/mlruns
+      SERVING_MANIFEST_PATH: /app/serving_model.json
+      CREW_CAPACITY_PER_SHIFT: "5"
+      RISK_THRESHOLD: "0.5"
+      URGENCY_HORIZON_CYCLES: "30"
+    volumes:
+      - ./mlruns:/app/mlruns:ro
+      - ./reports/generated/serving_model.json:/app/serving_model.json:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; response=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); raise SystemExit(0 if response['model_available'] else 1)"
+      interval: 30s
+      timeout: 5s
+      retries: 3

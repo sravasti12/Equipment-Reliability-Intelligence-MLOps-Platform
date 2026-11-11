@@ -42,3 +42,9 @@ jobs:
 
       - name: Type-check
         run: python -m mypy src
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build API container
+        run: docker build --tag reliability-platform-api:ci .

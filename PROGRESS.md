@@ -1,15 +1,15 @@
 # Progress Tracker
 
 **Last updated:** 2026-11-12
-**Current phase:** Phase 5: Heuristic Maintenance Scheduling and Business Backtesting complete locally
-**Overall status:** 6 of 10 phases complete
+**Current phase:** Phase 6: Model Serving and API complete locally
+**Overall status:** 7 of 10 phases complete
 
 ## Status Summary
 
 - Done: Phases 0-5: project setup, data engineering, reliability analysis, leakage-aware features, baseline and advanced modeling, uncertainty, explainability, and heuristic maintenance backtesting.
 - In progress: None.
-- Next up: Wait for explicit approval before Phase 6; see `PROJECT_SPEC.md`.
-- Blockers: GitHub CI has not run for the local Phase 4/5 changes. Changes remain uncommitted for the user to push.
+- Next up: Wait for explicit approval before Phase 7.
+- Blockers: GitHub CI has not run for the local Phase 4-6 changes. The user can push these changes to run CI.
 
 ## Phase Checklist
 
@@ -127,7 +127,25 @@ Acceptance criteria:
 - [x] Local automated checks pass and the complete synthetic-fleet CLI run is tracked in MLflow.
 - [ ] GitHub CI passes after the user pushes these changes.
 
-Phase 6 is not started; see `PROJECT_SPEC.md`.
+#### Phase 6: Model Serving and API
+
+- [x] Add validated `/health`, `/predict`, `/explain`, and `/schedule` endpoints.
+- [x] Load one versioned MLflow run ID from a serving manifest and report it as the model version.
+- [x] Train a serving random-forest artifact and calibrate trajectory intervals using machine-disjoint fit/calibration partitions.
+- [x] Reuse the causal feature builder, conformal interval, and deterministic Phase 5 scheduler for API responses.
+- [x] Add Pydantic request/response validation and explicit malformed-input/model-unavailable errors.
+- [x] Add endpoint integration tests and sample requests.
+- [x] Add Dockerfile, Compose service, model-health check, and deployment documentation; local Compose configuration and Docker image build passed.
+- [x] Build and run the Docker image with all endpoints responding to documented sample requests.
+
+Acceptance criteria:
+
+- [x] All endpoints have automated tests, including prediction, explanations, priorities, and unavailable-model behavior.
+- [x] Local API tests load an actual MLflow artifact and verify request/response contracts.
+- [x] Locally pass both `docker compose config` and `docker buildx build --load`.
+- [x] The container responds correctly to documented sample requests.
+
+Phase 7 is not started; see `PROJECT_SPEC.md`.
 
 ## Decisions
 
@@ -146,6 +164,7 @@ Phase 6 is not started; see `PROJECT_SPEC.md`.
 | 2026-11-12 | Calibrate conformal intervals on each calibration machine's maximum absolute cycle residual. | Treat a machine trajectory, rather than correlated cycle rows, as the calibration unit. |
 | 2026-11-12 | Use TreeExplainer tree-path-dependent perturbation after interventional SHAP failed its additivity check on FD002. | The corrected explanation method passes an explicit contribution-sum check on synthetic and saved FD002 models. |
 | 2026-11-12 | Treat maintenance costs and prevention effectiveness as configurable synthetic assumptions; permit only one ML-informed intervention per machine. | The project has no measured costs or post-maintenance counterfactual telemetry, so the backtest must not imply real-world treatment effects or repeatedly apply unsupported predictions. |
+| 2026-11-12 | Serve one calibrated random-forest MLflow run, with its run ID and feature schema in a manifest; do not use model registry stages or switching. | Keep model identity explicit and use machine-disjoint calibration metadata without introducing promotion or rollback workflows. |
 
 ## Results Log
 
@@ -167,6 +186,8 @@ Phase 6 is not started; see `PROJECT_SPEC.md`.
 | 2026-11-12 | Phase 4 automated checks | Full Pytest: 43 passed in 215.57 s; Ruff lint and format, Mypy (24 source files), `pip check`, and `git diff --check` passed. The focused advanced integration test completed the synthetic CLI and verified MLflow runs, plots, and SHAP additivity. The full FD002 CLI was not rerun after the SHAP fix; Phase 4 CI awaits push. | N/A |
 | 2026-11-12 | Phase 5 synthetic maintenance backtest | Seed-42 fleet: 70 training / 15 calibration / 15 test machines; validation RMSE 21.427 cycles and 80% target trajectory-conformal bound 49.664 cycles. Run-to-failure: 585,000 simulated units, 15 failures, 360 downtime hours. Fixed interval: 198,000 units, 22 interventions, 10 false alarms, 12 assumed prevented failures, 3 failures, 72 downtime hours, 24.417-cycle mean lead. ML-informed: 612,000 units, 15 interventions, 14 false alarms, 1 assumed prevented failure, 14 failures, 336 downtime hours, 31-cycle mean lead. Results are assumption-dependent and not causal savings. | `e415d268d949484c9e763af19eda5827` |
 | 2026-11-12 | Phase 5 automated checks | Full Pytest: 49 passed. Final Ruff lint, format check (44 files), strict Mypy (27 source files), `pip check`, and `git diff --check` all passed. GitHub CI has not run for local Phase 4/5 changes. | N/A |
+| 2026-11-12 | Phase 6 serving model preparation | Seed-42 synthetic fleet; random forest fitted on training machines and calibrated on validation machines at 90% target. Manifest references MLflow run `05ba7e06f54c4a8fba45860a4bf2053d`. | `05ba7e06f54c4a8fba45860a4bf2053d` |
+| 2026-11-12 | Phase 6 API integration tests | Full Pytest: 51 passed (2 API integration tests). Tests loaded an MLflow artifact and verified `/health`, `/predict`, `/explain` (SHAP additivity), `/schedule` capacity/priority ordering, duplicate-cycle rejection, and unavailable-model HTTP 503. After fixing local Windows MLflow file-URI handling for a Linux container, the 2 API integration tests passed again. Final Ruff lint/format, strict Mypy, `pip check`, `git diff --check`, and sample JSON validation passed. Docker/Compose verified locally: `docker compose config` and `docker buildx build --load --tag reliability-platform-api:phase6 .` succeeded; `docker compose up --build --wait` reached healthy. The documented sample returned RUL 120.276 cycles, interval [53.922, 186.631], risk 0, and SHAP additivity residual 6.96e-13. | N/A |
 
 ## Session Log
 
@@ -204,6 +225,12 @@ Phase 6 is not started; see `PROJECT_SPEC.md`.
 - Problems encountered: The first fixed-interval replay repeatedly selected the same machines at global intervals. The policy was corrected to track each machine's own last service while retaining capacity-deferred candidates. MLflow warns that a model signature/input example is absent; the run and artifacts completed. Tests emit upstream Pydantic, Matplotlib, and Pyparsing warnings.
 - What is left for next session: Push Phase 5 and verify GitHub CI as desired; Phase 6 requires explicit user approval.
 
+- What was done: Added a CLI to train and calibrate a serving random forest, an MLflow run manifest, FastAPI health/predict/explain/schedule endpoints, Pydantic schemas, Dockerfile/Compose configuration, sample payload, and endpoint integration tests.
+- Tests executed: Full Pytest suite: 51 passed; after the MLflow artifact-path fix, both API integration tests passed again. Ruff lint/format, strict Mypy, `pip check`, and `git diff --check` passed. Prepared the seed-42 serving artifact with MLflow run `05ba7e06f54c4a8fba45860a4bf2053d`. `docker compose config`, `docker buildx build --load --tag reliability-platform-api:phase6 .`, and `docker compose up --build --wait` all succeeded.
+- Results: The live container reached healthy and served `/health`, `/predict`, `/explain`, and `/schedule` for the documented sample. It returned RUL 120.276 cycles, interval [53.922, 186.631], risk 0, and SHAP additivity residual 6.96e-13. The API reports the configured MLflow run ID and uses the Phase 5 deterministic priority ordering.
+- Problems encountered: The first healthy-process attempt was marked unhealthy because Windows-produced MLflow file metadata referenced a host path unavailable in Linux. The runtime now resolves run artifacts from the mounted local file store. The Docker image uses the pinned CPU-only PyTorch wheel, avoiding unnecessary CUDA dependencies.
+- What is left for next session: GitHub Actions includes Compose validation and image build; push the changes to run CI. Phase 7 requires explicit user approval.
+
 ## Known Issues / Limitations
 
 - The enclosing `C:\Users\KIIT\.git` is unrelated; a separate project-local `.git` establishes the correct repository boundary.
@@ -212,3 +239,4 @@ Phase 6 is not started; see `PROJECT_SPEC.md`.
 - The full FD002 Phase 4 CLI has not yet been rerun after correcting SHAP; its initial model metrics are present in MLflow, and corrected SHAP was verified directly on the saved model. The full advanced CLI passed on the seeded synthetic fleet.
 - MLflow 2.22 logs a warning rather than inferring a model signature for synthetic examples with string `operating_condition` values; the model artifacts and metric runs are still created.
 - Phase 5 costs and maintenance-prevention outcomes are synthetic assumptions; the held-out backtest is illustrative and does not establish causal treatment effectiveness or real-world savings.
+- Phase 6 Docker/Compose was locally verified on 2026-11-12: `docker compose config`, Docker image build/load, Compose startup with health wait, and all documented API sample requests succeeded. Docker image installs CPU-only PyTorch to avoid unused CUDA runtime dependencies.

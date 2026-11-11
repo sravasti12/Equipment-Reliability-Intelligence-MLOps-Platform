@@ -1,0 +1,75 @@
+{
+  "machine_id": "demo-machine-001",
+  "observations": [
+    {
+      "cycle": 1,
+      "sensor_values": {
+        "sensor_1": 82.4,
+        "sensor_2": 41.1,
+        "sensor_3": 21.3,
+        "sensor_4": 90.2,
+        "sensor_5": 77.8
+      },
+      "setting_1": 0.1,
+      "setting_2": 0.2,
+      "setting_3": 0.0,
+      "operating_condition": "1"
+    },
+    {
+      "cycle": 2,
+      "sensor_values": {
+        "sensor_1": 82.8,
+        "sensor_2": 41.4,
+        "sensor_3": 21.5,
+        "sensor_4": 90.5,
+        "sensor_5": 78.1
+      },
+      "setting_1": 0.1,
+      "setting_2": 0.2,
+      "setting_3": 0.0,
+      "operating_condition": "1"
+    },
+    {
+      "cycle": 3,
+      "sensor_values": {
+        "sensor_1": 83.1,
+        "sensor_2": 41.6,
+        "sensor_3": 21.8,
+        "sensor_4": 90.8,
+        "sensor_5": 78.3
+      },
+      "setting_1": 0.1,
+      "setting_2": 0.2,
+      "setting_3": 0.0,
+      "operating_condition": "1"
+    },
+    {
+      "cycle": 4,
+      "sensor_values": {
+        "sensor_1": 83.5,
+        "sensor_2": 41.9,
+        "sensor_3": 22.0,
+        "sensor_4": 91.0,
+        "sensor_5": 78.6
+      },
+      "setting_1": 0.1,
+      "setting_2": 0.2,
+      "setting_3": 0.0,
+      "operating_condition": "1"
+    },
+    {
+      "cycle": 5,
+      "sensor_values": {
+        "sensor_1": 83.9,
+        "sensor_2": 42.2,
+        "sensor_3": 22.2,
+        "sensor_4": 91.3,
+        "sensor_5": 78.9
+      },
+      "setting_1": 0.1,
+      "setting_2": 0.2,
+      "setting_3": 0.0,
+      "operating_condition": "1"
+    }
+  ]
+}
