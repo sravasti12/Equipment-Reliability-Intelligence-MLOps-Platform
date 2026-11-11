@@ -34,7 +34,7 @@ def _read_config(path: Path) -> dict[str, Any]:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="reliability-platform",
-        description="Generate or process validated equipment reliability data.",
+        description="Run equipment reliability data and modeling workflows.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -113,6 +113,26 @@ def _parser() -> argparse.ArgumentParser:
     advanced.add_argument("--epochs", type=int, default=10)
     advanced.add_argument("--target-coverage", type=float, default=0.9)
     advanced.add_argument("--landmark-cycles", type=int, default=20)
+    maintenance = commands.add_parser(
+        "backtest-maintenance",
+        help="compare deterministic maintenance policies on held-out histories",
+    )
+    maintenance.add_argument("--input", type=Path, required=True)
+    maintenance.add_argument(
+        "--config",
+        type=Path,
+        default=Path("configs") / "maintenance.yaml",
+    )
+    maintenance.add_argument(
+        "--output",
+        type=Path,
+        default=Path("reports") / "generated" / "maintenance_backtest.json",
+    )
+    maintenance.add_argument(
+        "--experiment-name",
+        default="reliability-maintenance-backtest",
+    )
+    maintenance.add_argument("--tracking-uri", default="file:./mlruns")
     return parser
 
 
@@ -188,6 +208,26 @@ def main(argv: Sequence[str] | None = None) -> None:
                 str(arguments.target_coverage),
                 "--landmark-cycles",
                 str(arguments.landmark_cycles),
+            ]
+        )
+        return
+    if arguments.command == "backtest-maintenance":
+        from reliability_platform.modeling.maintenance_cli import (
+            main as maintenance_backtest_main,
+        )
+
+        maintenance_backtest_main(
+            [
+                "--input",
+                str(arguments.input),
+                "--config",
+                str(arguments.config),
+                "--output",
+                str(arguments.output),
+                "--experiment-name",
+                arguments.experiment_name,
+                "--tracking-uri",
+                arguments.tracking_uri,
             ]
         )
         return

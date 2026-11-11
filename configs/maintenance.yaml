@@ -1,0 +1,17 @@
+costs:
+  planned_maintenance_cost: 2500.0
+  unplanned_failure_cost: 15000.0
+  downtime_cost_per_hour: 1000.0
+  downtime_hours_per_failure: 24.0
+  maintenance_intervention_cost: 500.0
+  false_alarm_cost: 1500.0
+
+backtest:
+  random_seed: 42
+  window_size: 5
+  target_coverage: 0.8
+  crew_capacity_per_shift: 5
+  risk_threshold: 0.5
+  urgency_horizon_cycles: 30
+  fixed_interval_cycles: 60
+  maintenance_effectiveness_cycles: 40

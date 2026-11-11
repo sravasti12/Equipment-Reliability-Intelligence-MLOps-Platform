@@ -6,12 +6,12 @@ The project follows the boundaries and phased plan in [PROJECT_SPEC.md](PROJECT_
 
 ## Status
 
-Phases 0-4 are implemented and locally verified: project setup, data
+Phases 0-5 are implemented and locally verified: project setup, data
 engineering, reliability analysis, leakage-aware feature engineering,
 baseline and advanced RUL models, survival analysis, anomaly detection,
-uncertainty quantification, and explainability. Phase 4's GitHub CI has not
-run because these local changes have not been pushed. No API or dashboard has
-been implemented.
+uncertainty quantification, explainability, and heuristic maintenance
+backtesting. GitHub CI has not run for the local Phase 4/5 changes. No API or
+dashboard has been implemented.
 
 ## Development setup
 
@@ -283,6 +283,71 @@ saved FD002 random forest and holdout: 32 rows were explained, both plots were
 created, and the maximum additivity residual was 8.32e-10. The full FD002 CLI
 was not rerun after this correction; the corrected complete CLI is covered by
 the synthetic integration test.
+
+## Phase 5: Heuristic maintenance scheduling and backtesting
+
+Run the chronological policy comparison on a processed, labelled fleet file:
+
+```powershell
+reliability-platform backtest-maintenance --input data\processed\synthetic_fleet.parquet --config configs\maintenance.yaml --output reports\generated\synthetic_maintenance_backtest.json --experiment-name phase5-synthetic-backtest --tracking-uri file:./mlruns
+```
+
+The command writes a JSON comparison and a companion PNG chart, and logs
+configuration, strategy metrics, the fitted model, and the report to MLflow.
+The default YAML makes all cost and policy assumptions explicit. Its costs
+are illustrative synthetic units, not authoritative industrial estimates:
+2,500 per planned maintenance, 500 per maintenance intervention, 15,000 per
+unplanned failure, 24 downtime hours per failure at 1,000 per hour, and 1,500
+per confirmed false alarm. Edit [configs/maintenance.yaml](configs/maintenance.yaml)
+to change costs, crew capacity, prediction interval coverage, risk threshold,
+fixed interval, or the assumed maintenance-effectiveness window.
+
+Machines are separated into 70% training, 15% conformal calibration, and 15%
+held-out test partitions. A Phase 3 random-forest RUL pipeline is fit only on
+training machines. Its validation-machine maximum-trajectory residual
+calibrates a conservative RUL lower bound. During chronological replay,
+features for a decision use only the current and preceding cycles; test RUL
+and failure labels are kept out of the scheduler and used only to score its
+actions afterward. Crew capacity is enforced at each simulated cycle/shift.
+The ML-informed policy greedily ranks eligible machines by risk, with ties
+broken deterministically; the fixed-interval policy services each machine at
+its configured interval and keeps capacity-deferred machines eligible. The ML
+policy limits actions to one per machine because this
+backtest has no post-maintenance counterfactual features.
+
+The comparison reports simulated total cost, failures, downtime, false-alarm
+rate, interventions, and lead time. A preventive intervention is assumed to
+prevent a recorded failure only when scheduled strictly before it and within
+the configured effectiveness window. This is a transparent counterfactual
+assumption, not a measured maintenance treatment effect. Right-censored
+machines are not counted as failures; interventions without adequate
+follow-up are reported as unverified. Costs depend on the configurable
+assumptions and the predictions. The greedy policy has no machine dependency
+handling or global optimality guarantee, and crew capacity is fixed per shift.
+
+### Phase 5 measured results
+
+The seed-42 synthetic fleet contained 100 machines; the held-out backtest
+scored 15 test machines (70 training / 15 calibration / 15 test). Validation
+RUL RMSE was 21.427 cycles, and the 80% target trajectory-conformal error
+bound was 49.664 cycles. Under the default synthetic costs and 40-cycle
+maintenance-effectiveness assumption:
+
+| Strategy | Simulated cost units | Planned interventions | False-alarm fraction | Assumed prevented failures | Unplanned failures | Downtime hours | Mean lead cycles |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Run to failure | 585,000 | 0 | 0.0% | 0 | 15 | 360 | N/A |
+| Fixed interval | 198,000 | 22 | 45.5% | 12 | 3 | 72 | 24.4 |
+| ML-informed heuristic | 612,000 | 15 | 93.3% | 1 | 14 | 336 | 31.0 |
+
+In this replay, fixed-interval service has the lowest simulated cost and
+downtime, but requires 22 interventions. The ML-informed policy does **not**
+reduce cost against run-to-failure under these settings: its simulated cost is
+612,000 units, with 14 false alarms among 15 interventions. Its conservative
+trajectory error bound makes the lower-RUL risk signal highly cautious. The
+apparent fixed-interval benefit and these ML-policy results are not measured
+causal maintenance effects or evidence of real-world savings: they depend on
+the configured synthetic costs and the assumption that an intervention
+prevents a recorded failure only when scheduled within 40 cycles of it.
 
 ## Project principles
 

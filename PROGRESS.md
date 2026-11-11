@@ -1,15 +1,15 @@
 # Progress Tracker
 
 **Last updated:** 2026-11-12
-**Current phase:** Phase 4: Advanced Machine Learning and Uncertainty Quantification complete locally
-**Overall status:** 5 of 10 phases complete
+**Current phase:** Phase 5: Heuristic Maintenance Scheduling and Business Backtesting complete locally
+**Overall status:** 6 of 10 phases complete
 
 ## Status Summary
 
-- Done: Phases 0-4: project setup, data engineering, reliability analysis, leakage-aware features, baseline and advanced modeling, uncertainty, and explainability.
+- Done: Phases 0-5: project setup, data engineering, reliability analysis, leakage-aware features, baseline and advanced modeling, uncertainty, explainability, and heuristic maintenance backtesting.
 - In progress: None.
-- Next up: Wait for explicit approval before Phase 5: Heuristic Maintenance Scheduling and Business Backtesting.
-- Blockers: Phase 4 GitHub CI has not run; changes are local and uncommitted pending the user's push.
+- Next up: Wait for explicit approval before Phase 6; see `PROJECT_SPEC.md`.
+- Blockers: GitHub CI has not run for the local Phase 4/5 changes. Changes remain uncommitted for the user to push.
 
 ## Phase Checklist
 
@@ -109,7 +109,25 @@ Acceptance criteria:
 - [x] Local automated checks pass.
 - [ ] GitHub CI passes after the user pushes these changes.
 
-Phases 5-9 are not started; see `PROJECT_SPEC.md`.
+#### Phase 5: Heuristic Maintenance Scheduling and Business Backtesting
+
+- [x] Add configurable illustrative intervention, planned-maintenance, failure, downtime, and false-alarm costs.
+- [x] Schedule deterministically by conformal lower-RUL risk with per-shift capacity constraints.
+- [x] Train on training machines, calibrate on validation machines, and replay policies on held-out test machines.
+- [x] Compare run-to-failure, recurring fixed-interval, and ML-informed heuristic policies chronologically.
+- [x] Report interventions, false alarms, assumed prevented failures, unplanned failures, downtime, lead time, and total simulated cost.
+- [x] Write a JSON report, comparison plot, and MLflow run through a dedicated CLI command.
+- [x] Add unit and integration coverage; document defaults, limitations, and measured results.
+
+Acceptance criteria:
+
+- [x] No held-out RUL or event labels are available to the scheduling policy; outcomes are scored only after each action decision.
+- [x] Capacity deferrals remain eligible for later scheduling, and fixed-interval service recurs per machine.
+- [x] Censored or insufficiently observed interventions are reported as unverified, not false alarms.
+- [x] Local automated checks pass and the complete synthetic-fleet CLI run is tracked in MLflow.
+- [ ] GitHub CI passes after the user pushes these changes.
+
+Phase 6 is not started; see `PROJECT_SPEC.md`.
 
 ## Decisions
 
@@ -127,6 +145,7 @@ Phases 5-9 are not started; see `PROJECT_SPEC.md`.
 | 2026-11-12 | Use one unidirectional LSTM, selected against Phase 3 baselines on validation RMSE. | Meet the temporal-model requirement without adding multiple deep architectures or tuning against test data. |
 | 2026-11-12 | Calibrate conformal intervals on each calibration machine's maximum absolute cycle residual. | Treat a machine trajectory, rather than correlated cycle rows, as the calibration unit. |
 | 2026-11-12 | Use TreeExplainer tree-path-dependent perturbation after interventional SHAP failed its additivity check on FD002. | The corrected explanation method passes an explicit contribution-sum check on synthetic and saved FD002 models. |
+| 2026-11-12 | Treat maintenance costs and prevention effectiveness as configurable synthetic assumptions; permit only one ML-informed intervention per machine. | The project has no measured costs or post-maintenance counterfactual telemetry, so the backtest must not imply real-world treatment effects or repeatedly apply unsupported predictions. |
 
 ## Results Log
 
@@ -146,6 +165,8 @@ Phases 5-9 are not started; see `PROJECT_SPEC.md`.
 | 2026-11-12 | Phase 4 seeded synthetic fleet | Full CLI completed on the seed-42 fleet (15 test machines, 1,772 rows). Validation selected random forest; test RMSE/MAE/asymmetric score: constant 36.982/31.330/123,660; linear 19.173/15.595/16,042; random forest 16.726/13.153/9,263; LSTM 22.139/17.541/26,324. At 90% target, row and trajectory coverage were both 100%, with 98.684-cycle average width from 14 calibration machines. Validation selected Kaplan-Meier (test Brier 0.214 vs. Weibull AFT 0.271). Injected-shift test ROC AUC 0.600 / average precision 0.609. SHAP maximum additivity residual: 9.6e-13. | `synthetic-phase4` |
 | 2026-11-12 | Phase 4 NASA FD002 evaluation | Logged test metrics for a 39-machine / 8,070-row holdout from the FD002 training file; validation selected random forest (RMSE 35.057). Test RMSE/MAE/asymmetric score: constant 67.597/56.244/1,040,422,794; linear 40.124/31.161/4,819,382; random forest 35.494/25.923/2,770,600; LSTM 44.246/32.093/75,086,389. Target conformal coverage 90%, observed row/trajectory coverage 100%, average width 278.061 cycles (36 calibration machines). Validation selected Kaplan-Meier; test Brier was 0.207 for Kaplan-Meier and 0.197 for Weibull AFT. Injected-shift ROC AUC 0.570 / average precision 0.556. The initial CLI stopped before writing JSON at SHAP; after the fix, direct explanation of the saved FD002 model succeeded for 32 rows with max additivity residual 8.32e-10. | `cmapss-fd002-phase4` |
 | 2026-11-12 | Phase 4 automated checks | Full Pytest: 43 passed in 215.57 s; Ruff lint and format, Mypy (24 source files), `pip check`, and `git diff --check` passed. The focused advanced integration test completed the synthetic CLI and verified MLflow runs, plots, and SHAP additivity. The full FD002 CLI was not rerun after the SHAP fix; Phase 4 CI awaits push. | N/A |
+| 2026-11-12 | Phase 5 synthetic maintenance backtest | Seed-42 fleet: 70 training / 15 calibration / 15 test machines; validation RMSE 21.427 cycles and 80% target trajectory-conformal bound 49.664 cycles. Run-to-failure: 585,000 simulated units, 15 failures, 360 downtime hours. Fixed interval: 198,000 units, 22 interventions, 10 false alarms, 12 assumed prevented failures, 3 failures, 72 downtime hours, 24.417-cycle mean lead. ML-informed: 612,000 units, 15 interventions, 14 false alarms, 1 assumed prevented failure, 14 failures, 336 downtime hours, 31-cycle mean lead. Results are assumption-dependent and not causal savings. | `e415d268d949484c9e763af19eda5827` |
+| 2026-11-12 | Phase 5 automated checks | Full Pytest: 49 passed. Final Ruff lint, format check (44 files), strict Mypy (27 source files), `pip check`, and `git diff --check` all passed. GitHub CI has not run for local Phase 4/5 changes. | N/A |
 
 ## Session Log
 
@@ -175,6 +196,14 @@ Phases 5-9 are not started; see `PROJECT_SPEC.md`.
 - Problems encountered: The initial full FD002 CLI invocation stopped before writing its JSON because interventional SHAP failed the additivity check (maximum discrepancy 0.750 cycles). Tree-path-dependent SHAP was verified against the same saved FD002 model (32 explanations, maximum residual 8.32e-10), and the complete synthetic CLI plus integration test passed after the fix. The full FD002 CLI was not rerun. MLflow also warns that synthetic string-category input examples do not infer a model signature; model artifacts and metrics were logged. Tests emit upstream Pydantic, Matplotlib, and Pyparsing deprecation warnings.
 - What is left for next session: Phase 4 is complete locally; the user will push these changes so GitHub CI can run. Wait for explicit approval before Phase 5.
 
+### 2026-11-12
+
+- What was done: Added configurable deterministic maintenance scheduling, per-machine recurring fixed-interval and run-to-failure policies, ML-informed replay with train/calibration/test machine separation, outcome/cost scoring, a report/plot, MLflow tracking, CLI integration, tests, and measured documentation.
+- Tests executed: Full Pytest suite (49 passed); the corrected synthetic-fleet maintenance CLI completed and logged MLflow run `e415d268d949484c9e763af19eda5827`. Final Ruff lint, format check (44 files), strict Mypy (27 source files), `pip check`, and `git diff --check` passed.
+- Results: On the seed-42 15-machine test fleet, the illustrative fixed-interval policy cost 198,000 units vs. 585,000 for run-to-failure, while the ML-informed policy cost 612,000 units. The fixed-interval result assumes 12 failures prevented; the ML policy had 14 false alarms out of 15 actions. These are simulated assumptions, not real-world savings.
+- Problems encountered: The first fixed-interval replay repeatedly selected the same machines at global intervals. The policy was corrected to track each machine's own last service while retaining capacity-deferred candidates. MLflow warns that a model signature/input example is absent; the run and artifacts completed. Tests emit upstream Pydantic, Matplotlib, and Pyparsing warnings.
+- What is left for next session: Push Phase 5 and verify GitHub CI as desired; Phase 6 requires explicit user approval.
+
 ## Known Issues / Limitations
 
 - The enclosing `C:\Users\KIIT\.git` is unrelated; a separate project-local `.git` establishes the correct repository boundary.
@@ -182,3 +211,4 @@ Phases 5-9 are not started; see `PROJECT_SPEC.md`.
 - NASA raw data and processed Parquet files are intentionally excluded from Git; use the documented download and processing commands to reproduce them.
 - The full FD002 Phase 4 CLI has not yet been rerun after correcting SHAP; its initial model metrics are present in MLflow, and corrected SHAP was verified directly on the saved model. The full advanced CLI passed on the seeded synthetic fleet.
 - MLflow 2.22 logs a warning rather than inferring a model signature for synthetic examples with string `operating_condition` values; the model artifacts and metric runs are still created.
+- Phase 5 costs and maintenance-prevention outcomes are synthetic assumptions; the held-out backtest is illustrative and does not establish causal treatment effectiveness or real-world savings.
