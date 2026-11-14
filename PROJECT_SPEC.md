@@ -35,6 +35,10 @@ DO NOT introduce:
 - Agentic AI workflows.
 - AI-based autonomous decision-making.
 - A second fault-injection or recovery-verification architecture resembling the OTA Campaign Verifier.
+- Model registry stages (candidate, staging, production).
+- Automated or gated model promotion.
+- Model rollback.
+- Shadow, champion-challenger, or A/B model deployment.
 
 The maintenance scheduler must remain a transparent, deterministic heuristic.
 
@@ -59,8 +63,7 @@ The platform should combine:
 - Cost-aware maintenance planning.
 - Historical strategy backtesting.
 - Model serving and deployment.
-- Experiment tracking and model lifecycle management.
-- Data and model monitoring.
+- Experiment tracking, data and model monitoring.
 
 ### Primary objective
 
@@ -77,6 +80,7 @@ Can we develop a reliable predictive analytics system that estimates equipment d
 - No LLM or agent integration.
 - No automated autonomous maintenance execution.
 - No dedicated fault-injection or firmware-recovery subsystem.
+- No model promotion, rollback, or deployment-slot logic.
 
 ---
 
@@ -96,7 +100,6 @@ Use Python 3.11.
 | Uncertainty | MAPIE or custom split-conformal implementation |
 | Explainability | SHAP |
 | Experiment tracking | MLflow |
-| Model registry | MLflow Model Registry |
 | Drift monitoring | Evidently |
 | API | FastAPI, Pydantic |
 | Dashboard | Streamlit or Plotly Dash |
@@ -240,8 +243,8 @@ reliability-platform/
 │   └── monitoring/
 │       ├── drift.py
 │       ├── performance.py
-│       ├── retraining.py
-│       └── registry.py
+│       ├── recommendation.py
+│       └── data_quality.py
 │
 ├── tests/
 │   ├── unit/
@@ -647,6 +650,7 @@ Return the heuristic maintenance priority list.
 - Error handling.
 - Model loading.
 - Model version identification.
+- Model version is the MLflow run ID in API responses; no model switching is implemented.
 - API tests.
 - Dockerfile.
 - Docker Compose.
@@ -699,11 +703,15 @@ Display:
 
 Display:
 
-- Current model version.
+- Model run ID.
 - Model evaluation metrics.
-- Prediction interval coverage.
-- Model performance history.
-- Drift monitoring summaries.
+- Interval coverage over time.
+- Drift summaries.
+- Data-quality summaries.
+
+Drift, calibration-over-time, and data-quality monitoring panels remain clearly
+marked placeholders until Phase 8 implements those monitoring outputs. Do not
+invent or simulate monitoring results in the dashboard.
 
 Acceptance criteria:
 
@@ -713,169 +721,131 @@ Save genuine application screenshots in `docs/`.
 
 ---
 
-## Phase 8: Production-Oriented MLOps and Model Lifecycle Management
+## Phase 8: Monitoring, Data Quality and Model Reliability Analytics
 
-This is one of the project's most important phases.
+The goal is to show how a deployed prediction system is observed and judged
+over time: is incoming data changing, are predictions still accurate, and are
+uncertainty intervals still honest?
 
-The goal is to demonstrate that the system can manage a model throughout its lifecycle, not merely train and deploy it once.
+This phase observes and reports. It does not deploy, promote, switch, or roll
+back models.
 
-### 8.1 MLflow experiment tracking
+### 8.1 Experiment tracking and lineage
 
-Track:
+Use MLflow for tracking only. Record for every training run:
 
-- Model parameters.
-- Training configurations.
-- Dataset identifiers and versions.
+- Parameters and training configuration.
+- Dataset identifier and version.
 - Feature schema.
-- Evaluation metrics.
-- Model artifacts.
-- Training run IDs.
+- Evaluation metrics, including interval coverage and width.
+- Code revision and run ID.
 
-Ensure experiments are reproducible.
+The API loads the model from a single configured run ID or artifact path.
+There is no staging, production tagging, or promotion workflow.
 
-### 8.2 Model registry
+### 8.2 Data drift monitoring
 
-Implement model version management.
-
-Support:
-
-- Candidate models.
-- Staging models.
-- Production models.
-- Model version comparison.
-- Model promotion.
-- Model rollback.
-
-Maintain an identifiable production model version.
-
-### 8.3 Model promotion gates
-
-A newly trained model must not automatically replace the production model.
-
-Define configurable promotion criteria based on:
-
-- Validation performance.
-- RUL prediction error.
-- Prediction interval coverage.
-- Interval width.
-- Business evaluation metrics.
-- Model compatibility.
-
-A candidate should only be promoted after passing the documented gates.
-
-The decision must be deterministic and auditable.
-
-### 8.4 Data drift monitoring
-
-Integrate Evidently.
-
-Monitor changes in:
+Integrate Evidently to monitor:
 
 - Sensor distributions.
 - Operating conditions.
 - Feature distributions.
 - Missing-value rates.
-- Incoming data characteristics.
 
-Generate reproducible drift reports.
+Generate reproducible drift reports comparing a reference dataset with
+controlled synthetic distribution shifts (gradual sensor offset, changed
+operating-condition mix, increased missingness). This is a data-monitoring
+experiment only.
 
-Use controlled synthetic distribution changes to demonstrate monitoring.
+### 8.3 Prediction monitoring
 
-This is a data monitoring experiment, not a fault-injection subsystem.
+Track over simulated time:
 
-### 8.5 Prediction monitoring
-
-Track:
-
-- Predicted RUL distributions.
-- Risk-score distributions.
+- Predicted RUL distribution.
+- Risk-score distribution.
 - Prediction interval widths.
 - Machine-level prediction trends.
-- Model version associated with each prediction.
 
-### 8.6 Performance monitoring
+### 8.4 Performance monitoring with delayed labels
 
-When delayed ground-truth failure information becomes available:
+When true failure times become known after the fact:
 
-- Calculate actual prediction errors.
-- Compare model performance over time.
-- Monitor calibration and interval coverage.
-- Compare performance against baseline models.
-- Identify potential degradation.
+- Compute realized RUL errors (RMSE, MAE, asymmetric score).
+- Compare against baseline models over the same period.
+- Track error by machine group and operating condition.
+- Flag statistically meaningful degradation, for example a rolling window
+  versus the validation period.
 
-Clearly distinguish data drift from actual model-performance degradation.
+### 8.5 Calibration monitoring
 
-Drift does not automatically mean that model performance has deteriorated.
+Track conformal interval coverage and average width over time using delayed
+labels. Report when observed coverage falls meaningfully below target and
+discuss why, including distribution shift and violations of the exchangeability
+assumption.
 
-### 8.7 Controlled retraining workflow
+### 8.6 Drift versus degradation analysis
 
-Implement a reproducible retraining workflow.
+Explicitly separate the two:
 
-The workflow should:
+- Drift is a change in the data.
+- Degradation is a measured increase in error or loss of coverage.
 
-1. Identify a documented monitoring condition.
-2. Generate a retraining recommendation.
-3. Prepare eligible training data.
-4. Train a candidate model.
-5. Evaluate it against the current production model.
-6. Check predefined promotion criteria.
-7. Approve or reject the candidate.
-8. Record the decision in MLflow.
-9. Retain the previous production version.
+Include deterministic, measured scenarios showing all four cases:
 
-The initial implementation can be manually triggered.
+1. No drift and no degradation.
+2. Drift without degradation.
+3. Degradation without obvious drift.
+4. Drift with degradation.
 
-Do not introduce unnecessary autonomous agents or complicated orchestration frameworks.
+Each scenario must be supported by measured drift and performance/calibration
+results, not only its label. Drift metrics and degradation metrics must be
+evaluated independently. Drift alone must never be reported as proof of poor
+performance. Where machine counts make evidence weak, report uncertainty or an
+inconclusive result rather than overclaiming.
 
-### 8.8 Model rollback
+### 8.7 Data-quality monitoring
 
-Support restoring the previously approved production model.
+Report incoming data quality over time: schema violations, out-of-range values,
+missingness, stuck sensors, and duplicate timestamps.
 
-Test that:
+### 8.8 Retraining recommendation report
 
-- The previous version remains available.
-- The correct model artifact can be loaded.
-- The production model identifier is updated correctly.
-- The rollback event is recorded.
+Produce a deterministic, human-readable report that states:
 
-### 8.9 Reproducibility and lineage
+- Which monitoring condition was triggered.
+- Supporting evidence (drift metrics, error trend, coverage trend).
+- A suggested action: no action, investigate, or retrain.
 
-Every registered model should be traceable to:
+The recommendation is advisory; a person decides. Retraining, if done, is
+simply re-running the normal training pipeline. Its metrics are tracked in
+MLflow and compared offline in a report. No automated approval, promotion, or
+replacement logic.
 
-- Training configuration.
-- Dataset version.
-- Feature schema.
-- Code revision.
-- MLflow run.
-- Evaluation metrics.
+### 8.9 CI and dashboard integration
 
-### 8.10 CI/CD
-
-Extend GitHub Actions to execute:
-
-- Ruff.
-- Mypy.
-- Pytest.
-- Integration tests.
-- Docker build.
+Extend GitHub Actions with fast monitoring tests and integration coverage,
+Ruff, Mypy, and a Docker build without materially increasing CI runtime. Provide
+a small/fast monitoring configuration for CI and a full configuration for local
+runs and the dashboard. The dashboard reads saved monitoring outputs, does not
+train models or invent monitoring values, and replaces the Phase 7 placeholders
+only with measured results.
 
 Acceptance criteria:
 
-Demonstrate a complete reproducible lifecycle:
+A single documented command runs a reproducible monitoring scenario:
 
-1. Train an initial model.
-2. Register it.
-3. Promote it to production.
-4. Generate a controlled data-drift scenario.
-5. Produce a drift report.
-6. Generate a retraining recommendation.
-7. Train a candidate model.
-8. Compare candidate and production models.
-9. Apply deterministic promotion gates.
-10. Promote or reject the candidate.
-11. Demonstrate rollback to a previously approved version.
+1. Train an initial model and log it in MLflow.
+2. Simulate incoming data in time windows.
+3. Apply a controlled distribution shift.
+4. Produce a drift report.
+5. Compute delayed-label performance and calibration for each window.
+6. Show at least one case of drift without degradation and one of real
+   degradation.
+7. Generate the retraining recommendation report.
 
-Drift alone must never automatically authorize production deployment.
+All reported results must come from actual runs and saved outputs. The monitoring
+model remains separate from the serving model. No Docker engine is required by
+the test suite.
 
 ---
 
@@ -897,7 +867,7 @@ Include:
 - Maintenance backtesting results.
 - API documentation.
 - Dashboard screenshots.
-- MLOps lifecycle.
+- Monitoring and reliability analytics.
 - Reproduction instructions.
 - Known limitations.
 - Future improvements.
@@ -912,7 +882,8 @@ Create a 2–3 minute demo video or GIF showing:
 4. Maintenance prioritization.
 5. Strategy comparison.
 6. Model monitoring.
-7. Candidate model evaluation and promotion.
+7. Drift report, delayed-label performance, calibration over time, and
+   retraining recommendation.
 
 ### Final cleanup
 
@@ -974,13 +945,12 @@ Report ML metrics alongside:
 Demonstrate:
 
 - Experiment tracking.
-- Model versioning.
-- Model lineage.
+- Lineage.
 - Drift monitoring.
-- Performance monitoring.
-- Controlled retraining.
-- Promotion gates.
-- Rollback.
+- Data-quality monitoring.
+- Delayed-label performance monitoring.
+- Calibration monitoring.
+- Retraining recommendation.
 
 Never claim production readiness based solely on a successful local experiment.
 
@@ -997,7 +967,7 @@ The project is complete only when:
 - Model evaluation is reproducible.
 - Backtesting is reproducible.
 - API and dashboard work.
-- MLOps lifecycle is demonstrated.
+- Monitoring scenario is reproducible and documented.
 - Documentation is complete.
 - PROGRESS.md is accurate.
 - All reported results are backed by actual experiments.
@@ -1028,7 +998,7 @@ Use commit messages referencing the phase and task:
 
 `P3: add rolling feature engineering`
 
-`P8: implement model promotion gates`
+`P8: implement monitoring and reliability analytics`
 
 ---
 
