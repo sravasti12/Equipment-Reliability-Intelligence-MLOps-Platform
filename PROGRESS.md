@@ -1,15 +1,14 @@
 # Progress Tracker
 
-**Last updated:** 2026-11-12
-**Current phase:** Phase 6: Model Serving and API complete locally
-**Overall status:** 7 of 10 phases complete
+**Last updated:** 2026-11-14
+**Current phase:** Phase 7: artifact-backed Streamlit dashboard
+**Overall status:** Phases 0-7 locally verified; Phase 8 not started
 
 ## Status Summary
 
-- Done: Phases 0-5: project setup, data engineering, reliability analysis, leakage-aware features, baseline and advanced modeling, uncertainty, explainability, and heuristic maintenance backtesting.
-- In progress: None.
-- Next up: Wait for explicit approval before Phase 7.
-- Blockers: GitHub Actions run 43114036981 failed at `ruff format --check` because `src/reliability_platform/api/app.py` would be reformatted. The local formatter has now fixed it and the full repository format check passes; push this fix to rerun CI.
+- Done: Phases 0-7, including the artifact-backed Streamlit dashboard and locally verified Compose API/dashboard services.
+- Next up: User-managed Git operations and GitHub Actions verification for these changes; begin Phase 8 only after separate approval.
+- Blockers: None for local Phase 7 acceptance. GitHub Actions run 43115068066 passed on the earlier main commit `6560fa7`; it does not include this working tree.
 
 ## Phase Checklist
 
@@ -107,7 +106,7 @@ Acceptance criteria:
 - [x] Conformal target/observed coverage and interval width are reported.
 - [x] All advanced workflow runs are tracked in MLflow; the synthetic CLI completed end to end.
 - [x] Local automated checks pass.
-- [ ] GitHub CI passes after the user pushes these changes.
+- [x] GitHub CI passes for the current main commit; run 43115068066 executed the full test, quality, Compose, and Docker build workflow.
 
 #### Phase 5: Heuristic Maintenance Scheduling and Business Backtesting
 
@@ -125,7 +124,7 @@ Acceptance criteria:
 - [x] Capacity deferrals remain eligible for later scheduling, and fixed-interval service recurs per machine.
 - [x] Censored or insufficiently observed interventions are reported as unverified, not false alarms.
 - [x] Local automated checks pass and the complete synthetic-fleet CLI run is tracked in MLflow.
-- [ ] GitHub CI passes after the user pushes these changes.
+- [x] GitHub CI passes for the current main commit; run 43115068066 executed the full test, quality, Compose, and Docker build workflow.
 
 #### Phase 6: Model Serving and API
 
@@ -144,9 +143,50 @@ Acceptance criteria:
 - [x] Local API tests load an actual MLflow artifact and verify request/response contracts.
 - [x] Locally pass both `docker compose config` and `docker buildx build --load`.
 - [x] The container responds correctly to documented sample requests.
-- [ ] GitHub CI passes after the formatting fix is pushed.
+- [x] GitHub CI passes for the current main commit; run 43115068066 executed the full test, quality, Compose, and Docker build workflow.
 
-Phase 7 is not started; see `PROJECT_SPEC.md`.
+#### Phase 7: Artifact-Backed Dashboard
+
+- [x] Verify `streamlit==1.45.1` installation against the Python 3.11 pinned environment.
+- [x] Implement fixture-tested data access for saved Parquet/JSON artifacts and the Phase 6 API.
+- [x] Implement fleet overview, individual machine analysis, business analytics, and model analytics pages.
+- [x] Add Streamlit AppTest smoke tests for every page; tests must not require Docker.
+- [x] Label the data source on every page and keep synthetic fleet and NASA C-MAPSS outputs distinct.
+- [x] Show an API-unavailable message while retaining artifact-backed page content.
+- [x] Keep Phase 8 drift, calibration-over-time, and data-quality panels as explicit placeholders.
+- [x] Add a dashboard Compose service that waits for the healthy API; update README instructions.
+- [x] Run the dashboard locally and capture genuine screenshots in `docs/`.
+
+Current progress:
+
+- Data access is fixture-tested, with allowlisted Parquet/JSON loading and API access. Fleet overview, individual machine analysis, business analytics, and model analytics each have an AppTest smoke test. These tests run without Docker and confirm artifact-backed views survive an unavailable API.
+- Synthetic-fleet and NASA C-MAPSS sources are labelled and kept separate. The model page displays only saved Phase 4 test results/run IDs and one-shot interval results; drift, calibration-over-time, and data-quality panels remain Phase 8 placeholders.
+- `streamlit==1.45.1` installs cleanly with the pinned Python 3.11 environment; `pip check` is clean. The dashboard Compose service depends on healthy API and mounts processed data and reports read-only.
+- Optimized fleet priority requests retain the first observation (sensor-variation baseline) and the configured latest five-cycle feature window. The feature fixture test confirms this produces the same current features as the full history. The API computes feature rows for all fleet machines together; a live Compose `/schedule` request returned 100 priorities in 1.16 seconds.
+- Both final API and dashboard Docker images built successfully; `docker compose up --detach --wait --no-build` reached healthy API and running dashboard. All four dashboard pages rendered from saved outputs in the live Compose app. Genuine screenshots are saved in `docs/`.
+- The prior full test run exposed an environment-dependent notebook PNG failure. The EDA notebook now explicitly selects the inline backend before importing pyplot; the complete suite passes with 66 tests. Remaining 251 warnings are non-fatal upstream deprecations: 244 Matplotlib/PyParsing, 3 Pydantic `min_items`, 1 Pydantic class-based config, 1 Starlette/AnyIO `BlockingPortal`, 1 Windows Proactor/ZMQ `add_reader`, and 1 Altair. No warning currently blocks Phase 7 acceptance.
+- Final local quality checks pass: Ruff lint and format (59 files), strict Mypy (39 source files), `pip check`, `docker compose config`, and `git diff --check`. GitHub Actions has not run on this working tree; no Git state-changing operation was performed.
+
+#### Phase 8: Monitoring, Data Quality and Model Reliability Analytics
+
+- [ ] Record MLflow parameters, dataset/version, feature schema, metrics, code revision, and run lineage.
+- [ ] Compare reference data with controlled sensor-offset, operating-condition-mix, and missingness changes using Evidently.
+- [ ] Track prediction, risk-score, interval-width, and machine-level trends over simulated windows.
+- [ ] Calculate delayed-label performance and compare it with baselines, including group/condition metrics and degradation checks.
+- [ ] Monitor interval coverage and width against the conformal target over time.
+- [ ] Demonstrate all four drift/degradation combinations; drift alone is not evidence of performance loss.
+- [ ] Generate a deterministic advisory report with evidence and action (no action, investigate, or retrain).
+- [ ] Report schema/range issues, missingness, stuck sensors, and duplicate timestamps.
+- [ ] Extend CI with tests and Docker build for the monitoring workflow.
+
+Acceptance criteria:
+
+- [ ] A documented single command runs the monitoring scenario and logs the initial model in MLflow.
+- [ ] The scenario simulates windows and controlled drift and produces a reproducible drift report.
+- [ ] Delayed-label performance and calibration are reported for each window.
+- [ ] Results show drift without degradation and actual degradation.
+- [ ] A deterministic advisory retraining recommendation is generated.
+- [ ] Every reported result is from an actual run.
 
 ## Decisions
 
@@ -184,12 +224,21 @@ Phase 7 is not started; see `PROJECT_SPEC.md`.
 | 2026-11-11 | Phase 3 automated checks | Pytest: 37 passed; Ruff lint/format, Mypy, `pip check`, and all four pre-commit hooks passed. Local MLflow integration test verifies 3 completed runs, logged metrics/model artifacts, and non-negative model predictions. Remaining warnings are from MLflow's Pydantic models and the known Windows notebook/ZMQ event loop integration. GitHub CI awaits the user's push. | N/A |
 | 2026-11-12 | Phase 4 seeded synthetic fleet | Full CLI completed on the seed-42 fleet (15 test machines, 1,772 rows). Validation selected random forest; test RMSE/MAE/asymmetric score: constant 36.982/31.330/123,660; linear 19.173/15.595/16,042; random forest 16.726/13.153/9,263; LSTM 22.139/17.541/26,324. At 90% target, row and trajectory coverage were both 100%, with 98.684-cycle average width from 14 calibration machines. Validation selected Kaplan-Meier (test Brier 0.214 vs. Weibull AFT 0.271). Injected-shift test ROC AUC 0.600 / average precision 0.609. SHAP maximum additivity residual: 9.6e-13. | `synthetic-phase4` |
 | 2026-11-12 | Phase 4 NASA FD002 evaluation | Logged test metrics for a 39-machine / 8,070-row holdout from the FD002 training file; validation selected random forest (RMSE 35.057). Test RMSE/MAE/asymmetric score: constant 67.597/56.244/1,040,422,794; linear 40.124/31.161/4,819,382; random forest 35.494/25.923/2,770,600; LSTM 44.246/32.093/75,086,389. Target conformal coverage 90%, observed row/trajectory coverage 100%, average width 278.061 cycles (36 calibration machines). Validation selected Kaplan-Meier; test Brier was 0.207 for Kaplan-Meier and 0.197 for Weibull AFT. Injected-shift ROC AUC 0.570 / average precision 0.556. The initial CLI stopped before writing JSON at SHAP; after the fix, direct explanation of the saved FD002 model succeeded for 32 rows with max additivity residual 8.32e-10. | `cmapss-fd002-phase4` |
+| 2026-11-12 | Phase 4 FD002 complete CLI rerun | Full `train-advanced` CLI completed on the 53,759-row FD002 training Parquet and wrote `reports/generated/fd002_advanced.json`. It reproduced the saved held-out results: random forest selected by validation (RMSE 35.057); test RMSE 35.494, MAE 25.923, asymmetric score 2,770,600; 100% observed trajectory coverage against 90% target with 278.061-cycle average width; SHAP and the remaining report artifacts completed. | `ce18ca5a63ff43b1803eeded4efc8bc5` |
 | 2026-11-12 | Phase 4 automated checks | Full Pytest: 43 passed in 215.57 s; Ruff lint and format, Mypy (24 source files), `pip check`, and `git diff --check` passed. The focused advanced integration test completed the synthetic CLI and verified MLflow runs, plots, and SHAP additivity. The full FD002 CLI was not rerun after the SHAP fix; Phase 4 CI awaits push. | N/A |
 | 2026-11-12 | Phase 5 synthetic maintenance backtest | Seed-42 fleet: 70 training / 15 calibration / 15 test machines; validation RMSE 21.427 cycles and 80% target trajectory-conformal bound 49.664 cycles. Run-to-failure: 585,000 simulated units, 15 failures, 360 downtime hours. Fixed interval: 198,000 units, 22 interventions, 10 false alarms, 12 assumed prevented failures, 3 failures, 72 downtime hours, 24.417-cycle mean lead. ML-informed: 612,000 units, 15 interventions, 14 false alarms, 1 assumed prevented failure, 14 failures, 336 downtime hours, 31-cycle mean lead. Results are assumption-dependent and not causal savings. | `e415d268d949484c9e763af19eda5827` |
 | 2026-11-12 | Phase 5 automated checks | Full Pytest: 49 passed. Final Ruff lint, format check (44 files), strict Mypy (27 source files), `pip check`, and `git diff --check` all passed. GitHub CI has not run for local Phase 4/5 changes. | N/A |
 | 2026-11-12 | Phase 6 serving model preparation | Seed-42 synthetic fleet; random forest fitted on training machines and calibrated on validation machines at 90% target. Manifest references MLflow run `05ba7e06f54c4a8fba45860a4bf2053d`. | `05ba7e06f54c4a8fba45860a4bf2053d` |
 | 2026-11-12 | Phase 6 API integration tests | Full Pytest: 51 passed (2 API integration tests). Tests loaded an MLflow artifact and verified `/health`, `/predict`, `/explain` (SHAP additivity), `/schedule` capacity/priority ordering, duplicate-cycle rejection, and unavailable-model HTTP 503. After fixing local Windows MLflow file-URI handling for a Linux container, the 2 API integration tests passed again. Final Ruff lint/format, strict Mypy, `pip check`, `git diff --check`, and sample JSON validation passed. Docker/Compose verified locally: `docker compose config` and `docker buildx build --load --tag reliability-platform-api:phase6 .` succeeded; `docker compose up --build --wait` reached healthy. The documented sample returned RUL 120.276 cycles, interval [53.922, 186.631], risk 0, and SHAP additivity residual 6.96e-13. | N/A |
 | 2026-11-12 | Phase 6 GitHub Actions | Run 43114036981 failed at `ruff format --check`: CI reported `src/reliability_platform/api/app.py` would be reformatted. Applied `ruff format` locally; full repository format check now passes (50 files). CI remains pending until this fix is pushed. | N/A |
+| 2026-11-12 | Phase 6 CI formatting fix | Run 43115068066 passed on commit `6560fa7b63ad804ee5076bb9174bf5c857ae5050`. Every workflow step succeeded: dependency install, full pytest, Ruff lint/format, Mypy, Compose config, and Docker image build. | N/A |
+| 2026-11-12 | Resume verification | Worktree matches `origin/main` at `6560fa7`; only the user-provided `PHASE_8_REVISION.md` is untracked. Full Pytest: 51 passed (250 warnings); Ruff lint and format passed (50 files); strict Mypy passed (32 source files); Docker 29.6.2, Compose config, and `docker build --tag reliability-platform-api:phase6-verification .` all passed. `PROJECT_SPEC.md` was aligned with the supplied monitoring-only Phase 8 revision; no Phase 7 implementation was started. | N/A |
+| 2026-11-12 | Phase 7 data access (verified) | Fixture tests: 9 passed; Ruff lint/format, Mypy, and `pip check` passed. Streamlit 1.45.1 imports on Python 3.11.4; pip reports all pinned project requirements satisfy its dependencies. Earlier full-suite warnings: 244 Matplotlib/PyParsing deprecations, 3 Pydantic `min_items` deprecations, 1 Pydantic class-based-config deprecation, 1 Starlette/AnyIO `BlockingPortal` deprecation, and 1 Windows Jupyter/ZMQ Proactor `add_reader` runtime warning (250 total; none failed tests). | N/A |
+| 2026-11-12 | Phase 7 fleet and machine pages | AppTest plus data-access suite: 11 passed. Both pages render fixture-backed data and source labels while the prediction API is unavailable. Ruff lint/format and Mypy passed. Streamlit emitted one upstream Altair deprecation warning during the chart smoke test. | N/A |
+| 2026-11-12 | Phase 7 business and model pages | AppTest plus data-access suite: 13 passed. The business page uses only the saved synthetic maintenance report; the model page uses saved evaluation reports and retains the three Phase 8 placeholders without generating monitoring values. Ruff lint/format and Mypy passed. | N/A |
+| 2026-11-12 | Phase 7 full project checks | Full Pytest: 63 passed, 1 failed, 251 warnings in 534.99 s. The only failure is the existing EDA notebook test expecting an `image/png` output; the executed notebook produced text/Markdown but no PNG with the local TkAgg Matplotlib backend. Ruff lint/format, strict Mypy (39 source files), `pip check`, and `git diff --check` passed. | N/A |
+| 2026-11-14 | Phase 7 final local verification | Full Pytest: 66 passed, 251 warnings in 161.89 s. Making the EDA notebook select `%matplotlib inline` before importing pyplot fixed the nondeterministic PNG assertion; the targeted test also passed with `MPLBACKEND=TkAgg`. Ruff lint and format (59 files), strict Mypy (39 source files), `pip check`, and `git diff --check` passed. | N/A |
+| 2026-11-14 | Phase 7 Compose runtime | Final API and dashboard images built successfully; Compose API health and dashboard startup passed. The live `/schedule` request returned 100 priorities for the synthetic fleet in 1.16 s. All four pages rendered from saved artifacts; screenshots saved in `docs/`. Compose config and read-only mounts were verified. | Serving model `05ba7e06f54c4a8fba45860a4bf2053d` |
 
 ## Session Log
 
@@ -233,12 +282,28 @@ Phase 7 is not started; see `PROJECT_SPEC.md`.
 - Problems encountered: The first healthy-process attempt was marked unhealthy because Windows-produced MLflow file metadata referenced a host path unavailable in Linux. The runtime now resolves run artifacts from the mounted local file store. The Docker image uses the pinned CPU-only PyTorch wheel, avoiding unnecessary CUDA dependencies.
 - What is left for next session: GitHub Actions includes Compose validation and image build; push the changes to run CI. Phase 7 requires explicit user approval.
 
+- What was done: Resumed project verification, confirmed current local and origin commits match, confirmed Phase 6 CI run 43115068066 is green, reran all requested local checks, aligned `PROJECT_SPEC.md` with `PHASE_8_REVISION.md`, and corrected CI status/checklists in this tracker.
+- Tests executed: Full Pytest: 51 passed (250 warnings); Ruff lint and format check (50 files); strict Mypy (32 source files); Docker engine check; `docker compose config`; `docker build --tag reliability-platform-api:phase6-verification .`; `git diff --check`.
+- Results: All requested local checks passed. GitHub Actions run 43115068066 passed all steps on current `main`. Phases 0-6 are verified against their recorded acceptance criteria; no unmet earlier-phase acceptance criterion was found.
+- Problems encountered: The full suite took 697 seconds and emitted 250 warnings, including upstream dependency deprecations. Docker build succeeded.
+- What is left for next session: Phase 7 implementation plan is proposed in this session's response. Wait for explicit approval; do not begin Phase 7 or Phase 8 yet.
+
+### 2026-11-14
+
+- What was done: Completed the approved Phase 7 Streamlit dashboard, fixture-based data access and AppTest coverage, API outage fallback, source labels, Phase 8 placeholders, Compose health dependency, README guidance, and genuine screenshots from the running Compose app. Improved API fleet scheduling by engineering all machine features together and compacting dashboard requests to retain the first sensor-variation baseline plus the latest configured feature window.
+- Tests executed: Full Pytest (66 passed, 251 warnings); dashboard and API targeted tests; Ruff lint/format, strict Mypy (39 source files), `pip check`, `git diff --check`; Docker Compose config, final API/dashboard image builds, Compose health startup, and live 100-machine schedule request.
+- Results: Full suite and all local quality checks passed. The Compose API returned 100 priorities in 1.16 seconds. Four live page screenshots are in `docs/`. No Phase 8 work was started.
+- Problems encountered: The first full run exposed an environment-dependent notebook PNG failure. Explicitly selecting the inline plotting backend before pyplot import made the notebook test pass deterministically, including with `MPLBACKEND=TkAgg`. Remaining dependency/platform deprecation warnings are listed above and do not fail tests.
+- What is left for next session: User-managed Git operations and GitHub Actions verification for the current working tree. Follow the user's Git rule; do not start Phase 8 without approval.
+
 ## Known Issues / Limitations
 
 - The enclosing `C:\Users\KIIT\.git` is unrelated; a separate project-local `.git` establishes the correct repository boundary.
 - The system default Python is 3.14.4; use Python 3.11 explicitly for this project.
 - NASA raw data and processed Parquet files are intentionally excluded from Git; use the documented download and processing commands to reproduce them.
-- The full FD002 Phase 4 CLI has not yet been rerun after correcting SHAP; its initial model metrics are present in MLflow, and corrected SHAP was verified directly on the saved model. The full advanced CLI passed on the seeded synthetic fleet.
+- The Phase 4 FD002 complete CLI was rerun on 2026-11-12 and wrote `reports/generated/fd002_advanced.json`; measured results and run ID `ce18ca5a63ff43b1803eeded4efc8bc5` are recorded above and in the README.
 - MLflow 2.22 logs a warning rather than inferring a model signature for synthetic examples with string `operating_condition` values; the model artifacts and metric runs are still created.
 - Phase 5 costs and maintenance-prevention outcomes are synthetic assumptions; the held-out backtest is illustrative and does not establish causal treatment effectiveness or real-world savings.
 - Phase 6 Docker/Compose was locally verified on 2026-11-12: `docker compose config`, Docker image build/load, Compose startup with health wait, and all documented API sample requests succeeded. Docker image installs CPU-only PyTorch to avoid unused CUDA runtime dependencies.
+- Phase 7 local verification does not imply GitHub CI has passed for the current working tree. The user handles all Git operations; no add, commit, push, stash, checkout, or reset was run.
+- `PHASE_8_REVISION.md` is user-provided and intentionally remains untracked. `PROJECT_SPEC.md` now reflects its monitoring-only scope; Phase 8 is not started.

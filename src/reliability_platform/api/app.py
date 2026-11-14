@@ -141,31 +141,37 @@ class ServingRuntime:
         return self.model, self.manifest
 
     def features_for(self, machine: MachineTelemetry) -> pd.DataFrame:
+        return self.features_for_many([machine])
+
+    def features_for_many(self, machines: list[MachineTelemetry]) -> pd.DataFrame:
+        """Build the current feature row for each machine in one tabular pass."""
         model, manifest = self.require_model()
         rows: list[dict[str, Any]] = []
-        for observation in machine.observations:
-            row: dict[str, Any] = {
-                "machine_id": machine.machine_id,
-                "cycle": observation.cycle,
-                # The feature builder needs a target column; only features are served.
-                "rul": 0.0,
-                **observation.sensor_values,
-            }
-            for name in ("setting_1", "setting_2", "setting_3"):
-                value = getattr(observation, name)
-                if value is not None:
-                    row[name] = value
-            if observation.operating_condition is not None:
-                row["operating_condition"] = observation.operating_condition
-            rows.append(row)
+        for machine in machines:
+            for observation in machine.observations:
+                row: dict[str, Any] = {
+                    "machine_id": machine.machine_id,
+                    "cycle": observation.cycle,
+                    # The feature builder requires a target; only features are served.
+                    "rul": 0.0,
+                    **observation.sensor_values,
+                }
+                for name in ("setting_1", "setting_2", "setting_3"):
+                    value = getattr(observation, name)
+                    if value is not None:
+                        row[name] = value
+                if observation.operating_condition is not None:
+                    row["operating_condition"] = observation.operating_condition
+                rows.append(row)
 
         try:
-            features = engineer_features(
+            engineered = engineer_features(
                 pd.DataFrame(rows),
                 window_size=manifest.window_size,
-            ).features
+            )
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
+        features = engineered.features
         missing = [
             column for column in manifest.feature_columns if column not in features
         ]
@@ -180,7 +186,12 @@ class ServingRuntime:
                 status_code=503,
                 detail="Model feature schema does not match the serving manifest.",
             )
-        return selected.iloc[[-1]]
+        machine_ids = engineered.metadata["machine_id"]
+        final_indices = [
+            int(machine_ids.index[machine_ids == machine.machine_id][-1])
+            for machine in machines
+        ]
+        return selected.iloc[final_indices].reset_index(drop=True)
 
     def predict_machine(
         self, machine: MachineTelemetry
@@ -317,10 +328,23 @@ def create_app(
 
     @application.post("/schedule", response_model=ScheduleResponse)
     def schedule(request: ScheduleRequest) -> ScheduleResponse:
-        serving_runtime.require_model()
+        model, manifest = serving_runtime.require_model()
+        features = serving_runtime.features_for_many(request.machines)
+        predicted_values = np.asarray(model.predict(features), dtype=float)
+        lower_bounds, upper_bounds = prediction_intervals(
+            predicted_values,
+            error_bound=manifest.conformal_error_bound_cycles,
+        )
         prediction_rows: list[dict[str, Any]] = []
-        for machine in request.machines:
-            predicted, lower, upper, risk = serving_runtime.predict_machine(machine)
+        for index, machine in enumerate(request.machines):
+            predicted = float(predicted_values[index])
+            lower = float(lower_bounds[index])
+            upper = float(upper_bounds[index])
+            risk = maintenance_risk(
+                predicted,
+                lower,
+                urgency_horizon_cycles=serving_runtime.settings.urgency_horizon_cycles,
+            )
             prediction_rows.append(
                 {
                     "machine_id": machine.machine_id,

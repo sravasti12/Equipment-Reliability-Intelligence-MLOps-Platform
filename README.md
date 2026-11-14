@@ -6,13 +6,14 @@ The project follows the boundaries and phased plan in [PROJECT_SPEC.md](PROJECT_
 
 ## Status
 
-Phases 0-5 are implemented and locally verified: project setup, data
+Phases 0-6 are implemented and locally verified: project setup, data
 engineering, reliability analysis, leakage-aware feature engineering,
 baseline and advanced RUL models, survival analysis, anomaly detection,
 uncertainty quantification, explainability, and heuristic maintenance
 backtesting. Phase 6 API endpoints and Docker container are locally verified.
-GitHub CI has not run for the local Phase 4-6 changes. No dashboard has been
-implemented.
+Phase 7 dashboard pages and updated API are locally verified through Docker
+Compose. GitHub Actions run 43115068066 passed for the earlier commit
+`6560fa7`; CI has not yet run for the current working tree.
 
 ## Development setup
 
@@ -268,6 +269,15 @@ ROC AUC 0.600 and average precision 0.609; these are synthetic scenario
 metrics, not real fault-detection performance. SHAP's maximum additivity
 residual was below 1e-12.
 
+On 2026-11-12, the full NASA FD002 advanced CLI was rerun end to end after the
+SHAP fix and wrote `reports/generated/fd002_advanced.json`. It reproduced the
+table above: validation selected random forest at 35.057-cycle RMSE; the
+39-machine/8,070-row test partition had 100% row and trajectory coverage
+against a 90% target, with 278.061-cycle average interval width. The run logged
+the selected random-forest model as MLflow run
+`ce18ca5a63ff43b1803eeded4efc8bc5` in experiment
+`cmapss-fd002-advanced-resume`.
+
 For FD002, validation selected the featureless Kaplan-Meier baseline
 (validation Brier 0.207 versus 0.213 for Weibull AFT), while the test Brier
 scores were 0.207 for Kaplan-Meier and 0.197 for Weibull AFT. The 90% target
@@ -395,6 +405,49 @@ Intervals depend on the calibration population and its exchangeability
 assumption. SHAP is limited to the supported tree pipeline and explains model
 output, not causal effects. The maintenance schedule is a heuristic, not a
 global optimizer.
+
+## Phase 7: Reliability dashboard
+
+The local Streamlit dashboard reads saved Parquet and JSON outputs from
+`data/processed/` and `reports/generated/`; it does not train models or schedule
+jobs. The four views are fleet overview, individual machine analysis, business
+analytics for the saved synthetic maintenance backtest, and model analytics for
+saved Phase 4 model comparisons. Each view labels its data source. Synthetic
+fleet and NASA C-MAPSS results are kept separate.
+
+Run the dashboard locally with saved artifacts:
+
+```powershell
+streamlit run src\reliability_platform\dashboard\app.py
+```
+
+The fleet overview and machine analysis can display their saved artifact-backed
+content when the API is unavailable and will show an explicit status message.
+The current serving model is trained on the synthetic fleet; NASA C-MAPSS rows
+are never sent to it. Model analytics displays saved MLflow run IDs, test
+metrics, and one-shot interval coverage/width. Drift, calibration-over-time,
+and data-quality panels are Phase 8 placeholders and contain no monitoring
+values.
+
+To run the dashboard with the API through Compose, first generate the synthetic
+fleet and prepare the serving model as shown in Phase 6, then start both
+services:
+
+```powershell
+docker compose up --build --wait
+```
+
+Open `http://localhost:8501` for the dashboard and `http://localhost:8000` for
+the API. Compose mounts processed data and reports read-only and starts the
+dashboard only after the API health check succeeds. Shut down with
+`docker compose down`. The dashboard can still render saved reports when its
+API is unavailable in local development.
+
+Genuine screenshots captured from the running Compose dashboard are available
+in [`docs/`](docs/): [fleet overview](docs/fleet-overview.png),
+[machine analysis](docs/machine-analysis.png),
+[business analytics](docs/business-analytics.png), and
+[model analytics](docs/model-analytics.png).
 
 ## Project principles
 

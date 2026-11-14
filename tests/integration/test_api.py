@@ -124,7 +124,10 @@ def test_api_serves_predictions_explanations_and_priorities(
         "/schedule",
         json={
             "machines": [
-                _machine_payload(f"machine-api-{index}", offset=float(index))
+                _machine_payload(
+                    f"machine-api-{index}",
+                    offset=0.0 if index == 1 else float(index),
+                )
                 for index in range(1, 5)
             ]
         },
@@ -140,6 +143,16 @@ def test_api_serves_predictions_explanations_and_priorities(
         3,
         4,
     ]
+    first_scheduled = next(
+        row
+        for row in schedule_data["priorities"]
+        if row["machine_id"] == prediction_data["machine_id"]
+    )
+    assert first_scheduled["predicted_rul"] == prediction_data["predicted_rul"]
+    assert (
+        first_scheduled["prediction_interval"] == prediction_data["prediction_interval"]
+    )
+    assert first_scheduled["risk_score"] == prediction_data["risk_score"]
 
     duplicate_cycles = _machine_payload("invalid-machine")
     duplicate_cycles["observations"].append(duplicate_cycles["observations"][0])

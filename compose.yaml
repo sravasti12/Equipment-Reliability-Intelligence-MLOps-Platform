@@ -23,3 +23,25 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - streamlit
+      - run
+      - src/reliability_platform/dashboard/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --browser.gatherUsageStats=false
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://api:8000
+      RELIABILITY_PLATFORM_ROOT: /app
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+      - ./reports/generated:/app/reports/generated:ro
+    depends_on:
+      api:
+        condition: service_healthy
