@@ -1,0 +1,16 @@
+monitoring:
+  random_seed: 42
+  reference_path: data/processed/synthetic_fleet.parquet
+  output_dir: reports/generated/monitoring/full
+  window_count: 10
+  reference_rows: 2048
+  rows_per_window: 1024
+  bootstrap_resamples: 2000
+  drift:
+    columns: []
+    psi_threshold: 0.1
+    missingness_threshold: 0.05
+  data_quality:
+    max_missing_fraction: 0.10
+    stuck_value_fraction: 0.95
+    minimum_stuck_observations: 5

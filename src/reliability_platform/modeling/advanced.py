@@ -52,6 +52,7 @@ from reliability_platform.modeling.survival import (
     survival_concordance,
     transform_survival_covariates,
 )
+from reliability_platform.monitoring.lineage import RunLineage
 
 
 def _dense(matrix: Any) -> npt.NDArray[np.float64]:
@@ -153,6 +154,7 @@ def _fit_and_score_lstm(
 def _fit_survival_selection(
     raw_splits: dict[str, pd.DataFrame],
     *,
+    lineage: RunLineage,
     landmark_cycles: int,
     tracking_uri: str,
     experiment_name: str,
@@ -196,6 +198,7 @@ def _fit_survival_selection(
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
     with mlflow.start_run(run_name="weibull_aft") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "model": "WeibullAFTFitter",
@@ -216,6 +219,7 @@ def _fit_survival_selection(
         run_client["weibull_run_id"] = run.info.run_id
 
     with mlflow.start_run(run_name="kaplan_meier_baseline") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "model": "KaplanMeierFitter",
@@ -368,6 +372,7 @@ def _log_candidate_test_metrics(
 def _fit_anomaly_report(
     feature_sets: dict[str, FeatureDataset],
     *,
+    lineage: RunLineage,
     random_seed: int,
     tracking_uri: str,
     experiment_name: str,
@@ -388,6 +393,7 @@ def _fit_anomaly_report(
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
     with mlflow.start_run(run_name="isolation_forest_injected_shift") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "model": "IsolationForest",
@@ -471,6 +477,7 @@ def train_advanced_models(
     training = feature_sets["fit"]
     validation = feature_sets["validation"]
     test = feature_sets["test"]
+    lineage = RunLineage.from_frame(frame)
 
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
@@ -506,6 +513,7 @@ def train_advanced_models(
     run_ids: dict[str, str] = {}
     for name, model in candidate_models.items():
         with mlflow.start_run(run_name=name) as run:
+            lineage.log(training.features)
             mlflow.log_params(
                 {
                     "model": name,
@@ -531,6 +539,7 @@ def train_advanced_models(
             run_ids[name] = run.info.run_id
 
     with mlflow.start_run(run_name="lstm_rul") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "model": "unidirectional_lstm",
@@ -618,6 +627,7 @@ def train_advanced_models(
         "random_forest"
     ]
     with mlflow.start_run(run_name="random_forest_raw_feature_ablation") as run:
+        lineage.log(ablation_training)
         mlflow.log_params(
             {
                 "model": "RandomForestRegressor",
@@ -687,6 +697,7 @@ def train_advanced_models(
         }
     )
     with mlflow.start_run(run_name="split_conformal_trajectory_intervals") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "selected_model": selected_rul_model,
@@ -717,6 +728,7 @@ def train_advanced_models(
 
     survival_report, survival_client = _fit_survival_selection(
         raw_splits,
+        lineage=lineage,
         landmark_cycles=landmark_cycles,
         tracking_uri=tracking_uri,
         experiment_name=experiment_name,
@@ -734,6 +746,7 @@ def train_advanced_models(
 
     anomaly_report, anomaly_client = _fit_anomaly_report(
         feature_sets,
+        lineage=lineage,
         random_seed=random_seed,
         tracking_uri=tracking_uri,
         experiment_name=experiment_name,
@@ -767,6 +780,7 @@ def train_advanced_models(
         random_seed=random_seed,
     )
     with mlflow.start_run(run_name="random_forest_shap_explanations") as run:
+        lineage.log(test.features)
         mlflow.log_params(
             {
                 "model": "phase4_random_forest",

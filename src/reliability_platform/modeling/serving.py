@@ -17,6 +17,7 @@ from reliability_platform.modeling.conformal import calibrate_trajectory_error
 from reliability_platform.modeling.features import engineer_features
 from reliability_platform.modeling.metrics import regression_metrics
 from reliability_platform.modeling.splitting import split_by_machine
+from reliability_platform.monitoring.lineage import RunLineage
 
 
 class ServingManifest(BaseModel):
@@ -75,10 +76,12 @@ def train_serving_model(
         calibration.target,
         calibration_prediction,
     )
+    lineage = RunLineage.from_frame(frame)
 
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
     with mlflow.start_run(run_name="calibrated_random_forest_api") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "model": "random_forest",

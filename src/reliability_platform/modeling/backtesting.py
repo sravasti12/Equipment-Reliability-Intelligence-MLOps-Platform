@@ -26,6 +26,7 @@ from reliability_platform.modeling.scheduling import (
     schedule_machines,
 )
 from reliability_platform.modeling.splitting import split_by_machine
+from reliability_platform.monitoring.lineage import RunLineage
 
 
 @dataclass(frozen=True)
@@ -564,6 +565,7 @@ def run_maintenance_backtest(
             )
         )
     )
+    lineage = RunLineage.from_frame(frame)
     report: dict[str, object] = {
         "dataset_rows": int(len(frame)),
         "test_machines": test_machines,
@@ -643,6 +645,7 @@ def run_maintenance_backtest(
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
     with mlflow.start_run(run_name="maintenance-policy-backtest") as run:
+        lineage.log(training.features)
         mlflow.log_params(
             {
                 "model": "Phase 3 random-forest RUL pipeline",

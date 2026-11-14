@@ -1,14 +1,14 @@
 # Progress Tracker
 
 **Last updated:** 2026-11-14
-**Current phase:** Phase 7: artifact-backed Streamlit dashboard
-**Overall status:** Phases 0-7 locally verified; Phase 8 not started
+**Current phase:** Phase 8.9: CI and dashboard integration
+**Overall status:** Phases 0-7 locally verified; Phases 8.1-8.8 are implemented and focused tests pass
 
 ## Status Summary
 
-- Done: Phases 0-7, including the artifact-backed Streamlit dashboard and locally verified Compose API/dashboard services.
-- Next up: User-managed Git operations and GitHub Actions verification for these changes; begin Phase 8 only after separate approval.
-- Blockers: None for local Phase 7 acceptance. GitHub Actions run 43115068066 passed on the earlier main commit `6560fa7`; it does not include this working tree.
+- Done: Phases 0-7 are locally verified; Phases 8.1-8.8 add lineage, drift, prediction, delayed-label performance, calibration, measured drift/degradation scenarios, data-quality monitoring, and an advisory recommendation.
+- Next up: Phase 8.9 CI/dashboard integration and the reproducible monitoring scenario.
+- Blockers: By user decision, interval coverage and width remain unavailable in baseline, serving, and maintenance-backtest runs because those workflows do not currently calculate them; no new metric calculations will be added under 8.1. GitHub Actions run 43115068066 passed on the earlier main commit `6560fa7`; it does not include this working tree.
 
 ## Phase Checklist
 
@@ -306,4 +306,84 @@ Acceptance criteria:
 - Phase 5 costs and maintenance-prevention outcomes are synthetic assumptions; the held-out backtest is illustrative and does not establish causal treatment effectiveness or real-world savings.
 - Phase 6 Docker/Compose was locally verified on 2026-11-12: `docker compose config`, Docker image build/load, Compose startup with health wait, and all documented API sample requests succeeded. Docker image installs CPU-only PyTorch to avoid unused CUDA runtime dependencies.
 - Phase 7 local verification does not imply GitHub CI has passed for the current working tree. The user handles all Git operations; no add, commit, push, stash, checkout, or reset was run.
-- `PHASE_8_REVISION.md` is user-provided and intentionally remains untracked. `PROJECT_SPEC.md` now reflects its monitoring-only scope; Phase 8 is not started.
+- `PHASE_8_REVISION.md` is user-provided and intentionally remains untracked. `PROJECT_SPEC.md` reflects its monitoring-only scope and the approved 8.7 data-quality / 8.8 recommendation numbering.
+
+## Phase 8 Progress
+
+### 8.1 Experiment tracking and lineage — complete
+
+- [x] Add metadata-only MLflow lineage tags and a `metadata/lineage.json` artifact to baseline, advanced, serving, and maintenance-backtest runs.
+- [x] Record dataset identifier/version, feature schema, code revision status, and MLflow run ID without changing model fitting, metric calculations, serving manifests, or report structures.
+- [x] Preserve the additive-only constraint: log interval coverage/width only in workflows that already calculate them. By user decision, these metrics remain unavailable in baseline, serving, and maintenance-backtest runs.
+- [x] 8.2 compatibility check: Evidently 0.7.23 resolved with the existing direct pins on Python 3.11.4, installed successfully, passed `pip check`, and passed an actual report API smoke test.
+- [x] Add per-feature PSI drift reporting and separate missingness-rate changes with explicit thresholds; provide small/fast CI and full local monitoring configurations.
+- [x] 8.3 Summarize actual model/API prediction outputs by window and source, including RUL, risk, interval width, and machine-level changes.
+- [x] 8.4 Compare delayed-label RMSE, MAE, and asymmetric score against reference and same-window baselines with machine-level bootstrap confidence intervals.
+- [x] 8.5 Monitor row and machine-trajectory interval coverage and width with machine-level confidence intervals and conservative small-sample conclusions.
+- [x] 8.6 Demonstrate all four drift/degradation combinations with separate measured drift and delayed-label performance outputs; drift alone is not evidence of degradation.
+- [x] 8.7 Report windowed schema violations, out-of-range values, missingness, stuck sensors, and duplicate timestamps.
+- [x] 8.8 Generate a deterministic advisory report from drift, delayed-label performance, calibration, and data-quality evidence.
+- [ ] 8.9 Integrate saved monitoring outputs into CI and the dashboard.
+
+#### 2026-11-14 — Phase 8.1 work
+
+- What was done: Added reproducible dataset fingerprints and feature-schema hashes, logged lineage tags/artifacts in existing MLflow runs, and corrected the 8.7/8.8 numbering in `PROJECT_SPEC.md`. No model behavior, metric calculations, report output formats, or serving artifacts were changed.
+- Tests executed: Focused lineage and training integration tests: 8 passed, 249 warnings, 176 seconds. Warnings are existing upstream Pydantic, Starlette/AnyIO, Matplotlib, and PyParsing deprecations.
+- Results: The lineage helper and all four training pathways passed their focused tests. Monitoring outputs, drift calculations, and dashboard integration have not been started.
+- Decision: The user chose to preserve the strict additive-only constraint. Interval coverage/width remain absent rather than being fabricated or computed in violation of the requirement.
+- What is left: Continue with Phase 8.3 prediction monitoring.
+
+### Phase 8.2 — Data drift monitoring
+
+- Dependency decision: Evidently 0.7.23 was verified with Python 3.11.4 and all existing direct pins. Pip's resolver dry run completed without conflicts; the actual editable install succeeded; `pip check` reported no broken requirements. Its documented `Report` and `DataDriftPreset(method="psi")` API was exercised on actual data and returned the expected per-feature PSI metrics. The release is pinned exactly and the report-shape behavior is covered by tests, so no custom fallback was needed.
+- Tests executed: `tests/unit/test_monitoring_drift.py`: 3 passed, 10 warnings in 15.71 seconds. The warnings are upstream Evidently/NumPy and Litestar deprecations.
+- Results: Drift reporting returns measured PSI, reference/current missingness rates, per-feature and overall drift flags, row counts, source labels, and library/version metadata. CI and full-local configuration files are present.
+- What is left: Prediction monitoring (8.3), delayed-label performance (8.4), calibration (8.5), four deterministic drift/degradation scenarios (8.6), data quality (8.7), advisory recommendation (8.8), and CI/dashboard integration (8.9).
+
+### Phase 8.3 — Prediction monitoring
+
+- What was done: Added windowed summaries for predicted RUL, risk score, and interval width, plus per-machine deltas across windows. Reports preserve source labels and reject invalid or duplicate machine/window predictions.
+- Tests executed: `tests/unit/test_monitoring_predictions.py`: 5 passed in 1.61 seconds.
+- Results: The monitoring function consumes supplied model/API prediction rows only; it performs no training and does not modify serving artifacts. Unit fixtures verify aggregation, source separation, trend calculations, and validation.
+- What is left: Generate predictions from the separate monitoring model and persist reports in the reproducible scenario (8.8/8.9).
+
+### Phase 8.4 — Delayed-label performance monitoring
+
+- What was done: Added per-window RMSE, MAE, and asymmetric-score reporting; comparison against a reference period and named baseline predictions; machine-type/operating-condition summaries; and 95% machine-level bootstrap intervals with fixed configurable seeds and resample counts.
+- Statistical guard: Degradation is supported only when the RMSE-difference interval is above zero and both periods meet the configurable minimum machine count. Otherwise the report marks evidence inconclusive and explains why. The bootstrap resamples machines, not correlated cycle rows.
+- Tests executed: `tests/unit/test_monitoring_performance.py`: 3 passed in 3.41 seconds.
+- Results: Tests verify a measured degradation, baseline comparison, reproducibility, and a small-machine case where the confidence interval is present but the conclusion remains weak/inconclusive.
+- What is left: Calibration/coverage monitoring (8.5), deterministic scenarios (8.6), data quality (8.7), recommendation (8.8), and CI/dashboard integration (8.9).
+
+### Phase 8.5 — Calibration monitoring
+
+- What was done: Added delayed-label row and machine-trajectory coverage, average interval width, and per-group summaries using the existing conformal interval metric implementation. Added fixed-seed, configurable machine-cluster bootstrap confidence intervals.
+- Statistical guard: Coverage status uses the 95% trajectory-coverage interval and a configurable minimum machine count. Small samples and intervals overlapping target remain inconclusive.
+- Tests executed: `tests/unit/test_monitoring_calibration.py`: 3 passed in 3.11 seconds.
+- Results: Tests verify supported undercoverage with enough machines, descriptive intervals without a conclusion for a small sample, and the distinction between row and trajectory coverage.
+- What is left: Four deterministic measured drift/degradation cases (8.6), data quality (8.7), advisory recommendation (8.8), and CI/dashboard integration (8.9).
+
+### Phase 8.6 — Drift versus degradation scenarios
+
+- What was done: Added a scenario evaluator that independently measures feature drift and delayed-label RMSE degradation, derives the case from those measurements, and rejects scenario sets that fail to demonstrate all four required combinations.
+- Statistical guard: Drift alone never implies degradation. Performance degradation is supported only by the existing confidence-interval rule and minimum-machine threshold.
+- Scenario-data note: The deterministic outcome perturbation is controlled synthetic data, not evidence about real equipment. Its output is based on computed metrics and must not be presented as a real-world degradation event.
+- Tests executed: `tests/unit/test_monitoring_scenarios.py`: 2 passed, 10 upstream Evidently/NumPy/Litestar deprecation warnings, in 23.76 seconds.
+- Results: The scenario report covered all four measured cases. The no-drift degradation case had an RMSE increase of 16.0 RUL units with a positive lower confidence bound; the drift-only case remained `no_degradation_detected`.
+- What is left: Data-quality monitoring (8.7), advisory recommendation (8.8), and CI/dashboard integration (8.9).
+
+### Phase 8.7 — Data-quality monitoring
+
+- What was done: Added windowed checks for missing/unexpected schema columns, non-numeric sensor values, missingness thresholds, sensor values outside observed reference minima/maxima, repeated per-machine sensor readings, missing machine/timestamp identifiers, and duplicate machine-cycle timestamps. Added matching thresholds to the CI and full monitoring configs.
+- Measurement note: Out-of-range checks use each reference sensor's observed min/max and are labeled as such; they are not physical operating limits. Missing cells and invalid non-numeric readings are reported separately.
+- Tests executed: `tests/unit/test_monitoring_data_quality.py`: 3 passed in 3.21 seconds.
+- Results: Focused fixtures verify each quality check, missingness accounting, and rejection of invalid window indices and thresholds.
+- What is left: Advisory recommendation (8.8) and CI/dashboard integration (8.9).
+
+### Phase 8.8 — Advisory retraining recommendation
+
+- What was done: Added a deterministic, source-separated recommendation report that carries through measured drift metrics, RMSE confidence intervals, calibration coverage intervals, and data-quality findings. Supported delayed-label degradation or undercoverage recommends review of retraining; drift, data-quality issues, and inconclusive evidence recommend investigation. Clear evidence recommends no action.
+- Safety guard: Recommendations are advisory only; the module neither trains nor switches models. Drift alone cannot result in a retraining recommendation. Each source retains an independent recommendation.
+- Tests executed: `tests/unit/test_monitoring_recommendation.py`: 5 passed in 0.37 seconds.
+- Results: Tests cover no action, drift-only investigation, supported degradation, inconclusive evidence, undercoverage, and source separation.
+- What is left: Reproducible scenario command, saved monitoring outputs, dashboard integration, CI checks, and documentation (8.9).

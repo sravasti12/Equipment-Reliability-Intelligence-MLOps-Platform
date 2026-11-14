@@ -25,6 +25,7 @@ from reliability_platform.modeling.splitting import (
     MachinePartitions,
     split_by_machine,
 )
+from reliability_platform.monitoring.lineage import RunLineage
 
 
 def _preprocessor(features: pd.DataFrame, *, scale_numeric: bool) -> ColumnTransformer:
@@ -158,6 +159,7 @@ def train_baselines(
         for name in ("train", "validation", "test")
     }
     training = feature_sets["train"]
+    lineage = RunLineage.from_frame(frame, dataset_identifier=dataset_name)
     models = _baseline_models(training.features, random_seed=random_seed)
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(experiment_name)
@@ -187,6 +189,7 @@ def train_baselines(
 
     for model_name, model in models.items():
         with mlflow.start_run(run_name=model_name) as run:
+            lineage.log(training.features)
             mlflow.log_params(
                 {
                     "model": model_name,
